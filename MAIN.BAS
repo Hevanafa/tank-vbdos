@@ -1,12 +1,13 @@
+DECLARE FUNCTION ScrX (x!) AS INTEGER
 DECLARE SUB KillPlayer ()
 DECLARE FUNCTION ScrY (y!) AS INTEGER
 DECLARE SUB DrawPowerup (p AS ANY)
-DECLARE SUB KillBullet (b AS ANY)
-DECLARE SUB DrawBullet (b AS ANY)
+DECLARE SUB KillBullet (B AS ANY)
+DECLARE SUB DrawBullet (B AS ANY)
 DECLARE SUB DrawWall (w AS ANY)
 DECLARE FUNCTION IntersectBox (x1!, y1!, x2!, y2!) AS INTEGER
-DECLARE FUNCTION Max! (a!, b!)
-DECLARE FUNCTION Min! (a!, b!)
+DECLARE FUNCTION Max! (a!, B!)
+DECLARE FUNCTION Min! (a!, B!)
 DECLARE SUB UpdatePowerupHit ()
 DECLARE SUB DrawPowerups ()
 DECLARE SUB UpdatePowerupSpawn ()
@@ -42,8 +43,12 @@ CONST false = 0
 CONST true = NOT false
 
 ' screen width & height
-CONST scrw = 320
+CONST ScrW = 320
 CONST scrh = 200
+
+' 9px x 15
+CONST mapw = 135
+CONST maph = 135
 
 
 CONST pu_nuke = 1
@@ -207,8 +212,8 @@ frameskip_count = 0
 
 CLS
 
-'DrawWalls
-'DrawPowerups
+DrawWalls
+DrawPowerups
 DrawBullets
 DrawPlayer
 DrawEnemies
@@ -281,9 +286,9 @@ CASE "M"
 END SELECT
 
 IF pleft < 0 THEN pleft = 0
-IF pleft > 310 THEN pleft = 310
+IF pleft > mapw - 9 THEN pleft = mapw - 9
 IF ptop < 0 THEN ptop = 0
-IF ptop > 170 THEN ptop = 170
+IF ptop > maph - 9 THEN ptop = maph - 9
 
 END IF
 
@@ -291,27 +296,27 @@ END SELECT
 
 END SUB
 
-SUB DrawBullet (b AS bullet)
+SUB DrawBullet (B AS bullet)
 
 DIM colour AS INTEGER
 colour = white
 
-IF NOT b.alive THEN colour = 0
+IF NOT B.alive THEN colour = 0
 
-IF b.vx <> 0 THEN
+IF B.vx <> 0 THEN
 
-    LINE (b.cx - b.vx * 2, ScrY(b.cy))-(b.cx, ScrY(b.cy)), 0
+    ' LINE (B.cx - B.vx * 2, ScrY(B.cy))-(B.cx, ScrY(B.cy)), 0
 
-    IF b.alive THEN
-        LINE (b.cx - 2, ScrY(b.cy))-(b.cx + 2, ScrY(b.cy)), colour
+    IF B.alive THEN
+        LINE (ScrX(B.cx - 2), ScrY(B.cy))-(ScrX(B.cx + 2), ScrY(B.cy)), colour
     END IF
 
-ELSEIF b.vy <> 0 THEN
+ELSEIF B.vy <> 0 THEN
 
-    LINE (b.cx, ScrY(b.cy) - b.vy * 2)-(b.cx, ScrY(b.cy)), 0
+    ' LINE (B.cx, ScrY(B.cy) - B.vy * 2)-(B.cx, ScrY(B.cy)), 0
 
-    IF b.alive THEN
-        LINE (b.cx, ScrY(b.cy) - 2)-(b.cx, ScrY(b.cy) + 2), colour
+    IF B.alive THEN
+        LINE (ScrX(B.cx), ScrY(B.cy) - 2)-(ScrX(B.cx), ScrY(B.cy) + 2), colour
     END IF
 END IF
 
@@ -345,7 +350,8 @@ IF NOT enemies(a).alive THEN GOTO next_14
 
 dir = GetEnemyDir(enemies(a))
 
-DrawRegion CINT(enemies(a).left), CINT(ScrY(enemies(a).top)), 9, 9, (dir - 1) * 9, 0
+' LINE (enemies(a).left - enemies(a).vx * 2, ScrY(enemies(a).top - enemies(a).vy * 2))-(enemies(a).left + 8 - enemies(a).vx * 2, ScrY(enemies(a).top + 8 - enemies(a).vy * 2)), 0, BF
+DrawRegion ScrX(enemies(a).left), ScrY(enemies(a).top), 9, 9, (dir - 1) * 9, 0
 
 next_14:
 
@@ -374,7 +380,7 @@ FOR a = 1 TO UBOUND(particles)
 
 IF NOT particles(a).alive THEN GOTO next_41
 
-CIRCLE (particles(a).cx, ScrY(particles(a).cy)), particles(a).ttl * 10, particle_ct(particles(a).colour_idx), 0, 2 * PI, 1
+CIRCLE (ScrX(particles(a).cx), ScrY(particles(a).cy)), particles(a).ttl * 10, particle_ct(particles(a).colour_idx), 0, 2 * PI, 1
 
 next_41:
 
@@ -384,18 +390,18 @@ END SUB
 
 SUB DrawPlayer ()
 
-DrawRegion FIX(pleft), FIX(ScrY(ptop)), 9, 9, (dir - 1) * 9, 0
+DrawRegion ScrX(pleft), ScrY(ptop), 9, 9, (dir - 1) * 9, 0
 
 END SUB
 
 SUB DrawPowerup (p AS powerup)
 
-IF NOT p.alive THEN
-LINE (p.left, ScrY(p.top))-(p.left + 8, ScrY(8 + p.top)), 0, BF
-EXIT SUB
-END IF
+'IF NOT p.alive THEN
+'LINE (p.left, ScrY(p.top))-(p.left + 8, ScrY(8 + p.top)), 0, BF
+'EXIT SUB
+'END IF
 
-DrawRegion FIX(p.left), FIX(ScrY(p.top)), 9, 9, (p.kind - 1) * 9, 9
+DrawRegion ScrX(p.left), ScrY(p.top), 9, 9, (p.kind - 1) * 9, 9
 
 END SUB
 
@@ -413,25 +419,25 @@ END SUB
 
 SUB DrawRegion (xdest AS INTEGER, ydest AS INTEGER, w AS INTEGER, h AS INTEGER, xsrc AS INTEGER, ysrc AS INTEGER)
 
-DIM a AS INTEGER, b AS INTEGER
+DIM a AS INTEGER, B AS INTEGER
 
-FOR b = 1 TO h
+FOR B = 1 TO h
 FOR a = 1 TO w
 
-IF spritesheet(ysrc + b, xsrc + a) <> 5 THEN
-PSET (xdest + a - 1, ydest + b - 1), spritesheet(ysrc + b, xsrc + a)
+IF spritesheet(ysrc + B, xsrc + a) <> 5 THEN
+PSET (xdest + a - 1, ydest + B - 1), spritesheet(ysrc + B, xsrc + a)
 END IF
 
-NEXT a, b
+NEXT a, B
 
 END SUB
 
 SUB DrawWall (w AS wall)
 
-LINE (w.left, ScrY(w.top))-(w.left + 8, ScrY(8 + w.top)), 0, BF
+' LINE (w.left, ScrY(w.top))-(w.left + 8, ScrY(8 + w.top)), 0, BF
 
 IF w.hp > 0 THEN
-    DrawRegion FIX(w.left), ScrY(w.top), 9, 9, (4 - w.hp) * 9, 18
+    DrawRegion ScrX(w.left), ScrY(w.top), 9, 9, (4 - w.hp) * 9, 18
 END IF
 
 END SUB
@@ -532,10 +538,10 @@ IntersectBox = NOT (cond_x OR cond_y)
 
 END FUNCTION
 
-SUB KillBullet (b AS bullet)
+SUB KillBullet (B AS bullet)
 
-b.alive = false
-DrawBullet b
+B.alive = false
+DrawBullet B
 
 END SUB
 
@@ -550,30 +556,30 @@ END SUB
 
 SUB LoadMap ()
 
-DIM a AS INTEGER, b AS INTEGER
+DIM a AS INTEGER, B AS INTEGER
 DIM has_wall AS INTEGER
 
 ERASE walls
-REDIM walls(100) AS wall
+REDIM walls(50) AS wall
 
 DIM idx AS INTEGER
 idx = 1
 
-OPEN "map.csv" FOR INPUT AS #1
+OPEN "square.csv" FOR INPUT AS #1
 
-FOR b = 1 TO 20
-FOR a = 1 TO 35
+FOR B = 1 TO 15
+FOR a = 1 TO 15
 
 INPUT #1, has_wall
 IF has_wall THEN
     walls(idx).hp = 4
     walls(idx).left = (a - 1) * 9
-    walls(idx).top = (b - 1) * 9
+    walls(idx).top = (B - 1) * 9
 
     idx = idx + 1
 END IF
 
-NEXT a, b
+NEXT a, B
 
 CLOSE #1
 
@@ -581,7 +587,7 @@ END SUB
 
 SUB LoadSpritesheet ()
 
-DIM a AS LONG, b AS LONG
+DIM a AS LONG, B AS LONG
 
 OPEN "tank.bmp" FOR BINARY AS #1
 
@@ -590,30 +596,30 @@ GET #1, 23, bmp_h
 
 REDIM spritesheet(bmp_h, bmp_w) AS INTEGER
 
-FOR b = 1 TO bmp_h
+FOR B = 1 TO bmp_h
 FOR a = 1 TO bmp_w
-GET #1, 1047 + (b - 1) * bmp_w + (a - 1), spritesheet(bmp_h - b + 1, a)
-spritesheet(bmp_h - b + 1, a) = spritesheet(bmp_h - b + 1, a) MOD 256
-NEXT a, b
+GET #1, 1047 + (B - 1) * bmp_w + (a - 1), spritesheet(bmp_h - B + 1, a)
+spritesheet(bmp_h - B + 1, a) = spritesheet(bmp_h - B + 1, a) MOD 256
+NEXT a, B
 
 CLOSE #1
 
 END SUB
 
-FUNCTION Max (a!, b!)
+FUNCTION Max (a!, B!)
 
-IF a > b THEN
+IF a > B THEN
 Max = a
 ELSE
-Max = b
+Max = B
 END IF
 
 END FUNCTION
 
-FUNCTION Min! (a!, b!)
+FUNCTION Min! (a!, B!)
 
-IF a > b THEN
-Min = b
+IF a > B THEN
+Min = B
 ELSE
 Min = a
 END IF
@@ -634,14 +640,20 @@ END SUB
 
 SUB ResetPlayerPos ()
 
-pleft = Rng(1, scrw \ 9) * 9
-ptop = scrh - 10    ' Rng(1, scrh \ 9) * 9
+pleft = Rng(1, mapw \ 9) * 9
+ptop = maph - 10    ' Rng(1, scrh \ 9) * 9
 
 END SUB
 
 FUNCTION Rng& (a&, z&)
 
 Rng = CLNG(FIX((z& - a& + 1) * RND) + a&)
+
+END FUNCTION
+
+FUNCTION ScrX (x) AS INTEGER
+
+ScrX = FIX(92 + x)
 
 END FUNCTION
 
@@ -695,7 +707,7 @@ END SUB
 
 SUB UpdateBullets ()
 
-DIM a AS INTEGER, b AS INTEGER
+DIM a AS INTEGER, B AS INTEGER
 DIM x_cond AS INTEGER, y_cond AS INTEGER
 
 FOR a = 1 TO UBOUND(bullets)
@@ -706,24 +718,24 @@ bullets(a).cx = bullets(a).cx + bullets(a).vx
 bullets(a).cy = bullets(a).cy + bullets(a).vy
 
 ' Check bounds
-IF bullets(a).cx < 0 OR bullets(a).cx > 320 OR bullets(a).cy < 0 OR bullets(a).cy > 200 THEN
+IF bullets(a).cx < 0 OR bullets(a).cx > mapw OR bullets(a).cy < 0 OR bullets(a).cy > maph THEN
     bullets(a).alive = false
     GOTO next_108
 END IF
 
 ' Check walls
 
-FOR b = 1 TO UBOUND(walls)
+FOR B = 1 TO UBOUND(walls)
 
-IF walls(b).hp <= 0 THEN GOTO next_23
+IF walls(B).hp <= 0 THEN GOTO next_23
 
-x_cond = walls(b).left <= bullets(a).cx AND bullets(a).cx <= walls(b).left + 8
-y_cond = walls(b).top <= bullets(a).cy AND bullets(a).cy <= walls(b).top + 8
+x_cond = walls(B).left <= bullets(a).cx AND bullets(a).cx <= walls(B).left + 8
+y_cond = walls(B).top <= bullets(a).cy AND bullets(a).cy <= walls(B).top + 8
 
 IF x_cond AND y_cond THEN
     KillBullet bullets(a)
-    walls(b).hp = walls(b).hp - 1
-    DrawWall walls(b)
+    walls(B).hp = walls(B).hp - 1
+    DrawWall walls(B)
     GOTO next_108
 END IF
 
@@ -743,17 +755,17 @@ IF bullets(a).harm_player THEN
         GOTO next_108
     END IF
 ELSE
-    FOR b = 1 TO UBOUND(enemies)
-        IF enemies(b).alive THEN
+    FOR B = 1 TO UBOUND(enemies)
+        IF enemies(B).alive THEN
 
-        x_cond = enemies(b).left <= bullets(a).cx AND bullets(a).cx <= enemies(b).left + 8
-        y_cond = enemies(b).top <= bullets(a).cy AND bullets(a).cy <= enemies(b).top + 8
+        x_cond = enemies(B).left <= bullets(a).cx AND bullets(a).cx <= enemies(B).left + 8
+        y_cond = enemies(B).top <= bullets(a).cy AND bullets(a).cy <= enemies(B).top + 8
 
         IF x_cond AND y_cond THEN
             KillBullet bullets(a)
 
-            enemies(b).alive = false
-            enemies(b).hp = enemies(b).hp - 1
+            enemies(B).alive = false
+            enemies(B).hp = enemies(B).hp - 1
 
             ExplosionFx bullets(a).cx, bullets(a).cy
 
@@ -824,14 +836,14 @@ END IF
 ' Check bounds
 IF enemies(a).left <= 0 THEN
     enemies(a).left = 0
-ELSEIF enemies(a).left > 311 THEN
-    enemies(a).left = 311
+ELSEIF enemies(a).left > mapw - 9 THEN
+    enemies(a).left = mapw - 9
 END IF
 
 IF enemies(a).top <= 0 THEN
     enemies(a).top = 0
-ELSEIF enemies(a).top > 191 THEN
-    enemies(a).top = 191
+ELSEIF enemies(a).top > maph - 9 THEN
+    enemies(a).top = maph - 9
 END IF
 
 next_65:
@@ -849,7 +861,7 @@ IF enemy_spawn_t <= 0 THEN
     IF enemies(a).alive THEN GOTO next_128
 
         enemies(a).alive = true
-        enemies(a).left = Rng(9, scrw - 9)
+        enemies(a).left = Rng(9, mapw - 9)
         enemies(a).top = 0
 
         ResetEnemyVel enemies(a)
@@ -895,7 +907,7 @@ END SUB
 
 SUB UpdatePowerupHit ()
 
-DIM a AS INTEGER, b AS INTEGER
+DIM a AS INTEGER, B AS INTEGER
 DIM cond_x AS INTEGER, cond_y AS INTEGER
 
 FOR a = 1 TO UBOUND(powerups)
@@ -908,10 +920,10 @@ IF IntersectBox(pleft, ptop, powerups(a).left, powerups(a).top) THEN
 
     SELECT CASE powerups(a).kind
     CASE pu_nuke
-        FOR b = 1 TO UBOUND(enemies)
-            IF enemies(b).alive THEN
-            ExplosionFx enemies(b).left, enemies(b).top
-            enemies(b).alive = false
+        FOR B = 1 TO UBOUND(enemies)
+            IF enemies(B).alive THEN
+            ExplosionFx enemies(B).left, enemies(B).top
+            enemies(B).alive = false
             score = score + 100
             END IF
         NEXT
@@ -938,8 +950,8 @@ FOR a = 1 TO UBOUND(powerups)
 
 IF NOT powerups(a).alive THEN
     powerups(a).alive = true
-    powerups(a).left = Rng(1, scrw \ 9) * 9
-    powerups(a).top = Rng(1, (scrh - 20) \ 9) * 9
+    powerups(a).left = Rng(1, (mapw \ 9) - 1) * 9
+    powerups(a).top = Rng(1, (maph \ 9) - 1) * 9
 
     powerups(a).kind = Rng(1, 4)
     IF powerups(a).kind = 2 THEN
