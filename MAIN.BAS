@@ -1,3 +1,12 @@
+DECLARE FUNCTION IntersectBox (x1!, y1!, x2!, y2!) AS INTEGER
+DECLARE FUNCTION Intersects (x1!, y1!, x2!, y2!) AS INTEGER
+DECLARE FUNCTION Max! (a!, b!)
+DECLARE FUNCTION Min! (a!, b!)
+DECLARE SUB UpdatePowerupHit ()
+DECLARE SUB DrawPowerups ()
+DECLARE SUB UpdatePowerupSpawn ()
+DECLARE SUB LoadMap ()
+DECLARE SUB ResetPlayerPos ()
 DECLARE SUB DrawParticles ()
 DECLARE SUB UpdateParticles ()
 DECLARE SUB ExplosionFx (cx!, cy!)
@@ -17,7 +26,7 @@ DECLARE SUB DrawRegion (xdest AS INTEGER, ydest AS INTEGER, w AS INTEGER, h AS I
 DECLARE SUB LoadSprites ()
 DECLARE SUB Shoot ()
 DECLARE SUB CheckInputs ()
-DECLARE FUNCTION Rng& (min&, max&)
+DECLARE FUNCTION Rng& (Min&, Max&)
 
 
 OPTION EXPLICIT
@@ -30,6 +39,15 @@ CONST true = NOT false
 ' screen width & height
 CONST scrw = 320
 CONST scrh = 200
+
+
+CONST pu_nuke = 1
+CONST pu_speed = 3
+CONST pu_life = 4
+CONST pu_freeze = 5
+CONST pu_autoshot = 6
+CONST pu_pierce = 7
+
 
 TYPE wall
     hp AS INTEGER
@@ -61,6 +79,7 @@ TYPE enemy
     shoot_t AS SINGLE
 END TYPE
 
+
 TYPE particle
     alive AS INTEGER
     size AS SINGLE
@@ -74,18 +93,30 @@ TYPE particle
 END TYPE
 
 
+TYPE powerup
+    alive AS INTEGER
+    left AS SINGLE
+    top AS SINGLE
+
+    ' starts with pu_
+    kind AS INTEGER
+END TYPE
+
+
 CONST PI# = 3.1415926535#
 CONST white% = 15
 
-DIM SHARED bullets(10) AS bullet
-DIM SHARED walls(20) AS wall
+DIM SHARED bullets(30) AS bullet
+DIM SHARED walls() AS wall
 DIM SHARED enemies(10) AS enemy
+DIM SHARED powerups(10) AS powerup
 
 DIM SHARED score AS LONG
 DIM SHARED lives
 DIM SHARED start_t
 DIM SHARED total_t
 DIM SHARED enemy_spawn_interval, enemy_spawn_t
+DIM SHARED powerup_spawn_interval, powerup_spawn_t
 
 COMMON SHARED spritesheet() AS INTEGER
 DIM SHARED bmp_w AS INTEGER, bmp_h AS INTEGER
@@ -109,13 +140,18 @@ particle_ct(4) = 5
 lives = 3
 enemy_spawn_interval = .5
 enemy_spawn_t = enemy_spawn_interval
+powerup_spawn_interval = 3
+powerup_spawn_t = powerup_spawn_interval
 
 
-FOR a = 1 TO UBOUND(walls)
-    walls(a).hp = Rng(1, 4)
-    walls(a).top = Rng(1, scrh \ 9) * 9
-    walls(a).left = Rng(1, scrw \ 9) * 9
-NEXT
+LoadMap
+
+' redim walls(20) as wall
+'FOR a = 1 TO UBOUND(walls)
+'    walls(a).hp = Rng(1, 4)
+'    walls(a).top = Rng(1, scrh \ 9) * 9
+'    walls(a).left = Rng(1, scrw \ 9) * 9
+'NEXT
 
 
 LoadSpritesheet
@@ -141,12 +177,12 @@ CONST d_down = 3
 CONST d_left = 4
 
 ' grid system
-DIM SHARED grid_x AS INTEGER, grid_y AS INTEGER
-DIM SHARED pleft AS INTEGER, ptop AS INTEGER
+' DIM SHARED grid_x AS INTEGER, grid_y AS INTEGER
+DIM SHARED pleft AS SINGLE, ptop AS SINGLE
+DIM SHARED pimmune_t AS INTEGER
 DIM SHARED dir AS INTEGER: dir = d_up
 
-pleft = Rng(1, scrw \ 9) * 9
-ptop = Rng(1, scrh \ 9) * 9
+ResetPlayerPos
 
 
 DIM count%
@@ -163,6 +199,8 @@ DO
 ' Update
 CheckInputs
 UpdateBullets
+UpdatePowerupSpawn
+UpdatePowerupHit
 UpdateEnemySpawn
 UpdateEnemyMovement
 UpdateParticles
@@ -176,6 +214,7 @@ DrawHUD
 DrawPlayer
 DrawEnemies
 DrawBullets
+DrawPowerups
 DrawWalls
 DrawParticles
 
@@ -199,9 +238,8 @@ END IF
 LOCATE 1, 33
 PRINT "FPS:" + STR$(last_fps);
 
-LOCATE 25, 1
-PRINT "Total time:" + STR$(FIX(total_t * 100) / 100) + "s";
-' PRINT USING "0#.##"; total_t;
+' LOCATE 25, 1
+' PRINT "Total time:" + STR$(FIX(total_t * 100) / 100) + "s";
 
 fps = fps + 1
 last_t = TIMER
@@ -217,7 +255,7 @@ k = INKEY$
 
 
 SELECT CASE k
-CASE " ", "z"
+CASE " ", "z", "x"
     Shoot
 CASE CHR$(27), "q"
     END
@@ -246,7 +284,7 @@ END SELECT
 IF pleft < 0 THEN pleft = 0
 IF pleft > 310 THEN pleft = 310
 IF ptop < 0 THEN ptop = 0
-IF ptop > 190 THEN ptop = 190
+IF ptop > 170 THEN ptop = 170
 
 END IF
 
@@ -263,10 +301,10 @@ FOR a = 1 TO UBOUND(bullets)
 IF bullets(a).alive THEN
 
 IF bullets(a).vx <> 0 THEN
-    LINE (bullets(a).cx - 2, bullets(a).cy)-(bullets(a).cx + 2, bullets(a).cy), white
+    LINE (bullets(a).cx - 2, 20 + bullets(a).cy)-(bullets(a).cx + 2, 20 + bullets(a).cy), white
 ELSEIF bullets(a).vy <> 0 THEN
     ' CIRCLE (bullets(a).cx, bullets(a).cy), 3, white, 0, 2 * PI, 1
-    LINE (bullets(a).cx, bullets(a).cy - 2)-(bullets(a).cx, bullets(a).cy + 2), white
+    LINE (bullets(a).cx, 20 + bullets(a).cy - 2)-(bullets(a).cx, 20 + bullets(a).cy + 2), white
 END IF
 
 END IF
@@ -286,7 +324,7 @@ IF NOT enemies(a).alive THEN GOTO next_14
 
 dir = GetEnemyDir(enemies(a))
 
-DrawRegion CINT(enemies(a).left), CINT(enemies(a).top), 9, 9, (dir - 1) * 9, 0
+DrawRegion CINT(enemies(a).left), CINT(20 + enemies(a).top), 9, 9, (dir - 1) * 9, 0
 
 next_14:
 
@@ -315,7 +353,7 @@ FOR a = 1 TO UBOUND(particles)
 
 IF NOT particles(a).alive THEN GOTO next_41
 
-CIRCLE (particles(a).cx, particles(a).cy), particles(a).ttl * 10, particle_ct(particles(a).colour_idx), 0, 2 * PI, 1
+CIRCLE (particles(a).cx, 20 + particles(a).cy), particles(a).ttl * 10, particle_ct(particles(a).colour_idx), 0, 2 * PI, 1
 
 next_41:
 
@@ -325,7 +363,19 @@ END SUB
 
 SUB DrawPlayer ()
 
-DrawRegion pleft, ptop, 9, 9, (dir - 1) * 9, 0
+DrawRegion FIX(pleft), FIX(20 + ptop), 9, 9, (dir - 1) * 9, 0
+
+END SUB
+
+SUB DrawPowerups ()
+
+DIM a AS INTEGER
+
+FOR a = 1 TO UBOUND(powerups)
+IF powerups(a).alive THEN
+    DrawRegion FIX(powerups(a).left), FIX(20 + powerups(a).top), 9, 9, (powerups(a).kind - 1) * 9, 9
+END IF
+NEXT
 
 END SUB
 
@@ -350,7 +400,7 @@ DIM a AS INTEGER
 
 FOR a = 1 TO UBOUND(walls)
 IF walls(a).hp > 0 THEN
-    DrawRegion walls(a).left, walls(a).top, 9, 9, (4 - walls(a).hp) * 9, 18
+    DrawRegion walls(a).left, 20 + walls(a).top, 9, 9, (4 - walls(a).hp) * 9, 18
 END IF
 NEXT
 
@@ -433,6 +483,46 @@ END IF
 
 END FUNCTION
 
+FUNCTION IntersectBox (x1, y1, x2, y2) AS INTEGER
+
+DIM cond_x: cond_x = x1 > x2 + 8 OR x1 + 8 < x2
+DIM cond_y: cond_y = y1 > y2 + 8 OR y1 + 8 < y2
+
+IntersectBox = NOT (cond_x OR cond_y)
+
+END FUNCTION
+
+SUB LoadMap ()
+
+DIM a AS INTEGER, b AS INTEGER
+DIM has_wall AS INTEGER
+
+ERASE walls
+REDIM walls(100) AS wall
+
+DIM idx AS INTEGER
+idx = 1
+
+OPEN "map.csv" FOR INPUT AS #1
+
+FOR b = 1 TO 20
+FOR a = 1 TO 35
+
+INPUT #1, has_wall
+IF has_wall THEN
+    walls(idx).hp = 4
+    walls(idx).left = (a - 1) * 9
+    walls(idx).top = (b - 1) * 9
+
+    idx = idx + 1
+END IF
+
+NEXT a, b
+
+CLOSE #1
+
+END SUB
+
 SUB LoadSpritesheet ()
 
 DIM a AS LONG, b AS LONG
@@ -454,6 +544,26 @@ CLOSE #1
 
 END SUB
 
+FUNCTION Max (a!, b!)
+
+IF a > b THEN
+Max = a
+ELSE
+Max = b
+END IF
+
+END FUNCTION
+
+FUNCTION Min! (a!, b!)
+
+IF a > b THEN
+Min = b
+ELSE
+Min = a
+END IF
+
+END FUNCTION
+
 SUB ResetEnemyVel (e AS enemy)
 
 IF RND >= .5 THEN
@@ -466,9 +576,16 @@ END IF
 
 END SUB
 
-FUNCTION Rng& (min&, max&)
+SUB ResetPlayerPos ()
 
-Rng = CLNG(FIX((max& - min& + 1) * RND) + min&)
+pleft = Rng(1, scrw \ 9) * 9
+ptop = scrh - 10    ' Rng(1, scrh \ 9) * 9
+
+END SUB
+
+FUNCTION Rng& (Min&, Max&)
+
+Rng = CLNG(FIX((Max& - Min& + 1) * RND) + Min&)
 
 END FUNCTION
 
@@ -505,6 +622,12 @@ EXIT FOR
 
 END IF
 NEXT
+
+END SUB
+
+SUB SpawnPowerup ()
+
+
 
 END SUB
 
@@ -553,6 +676,7 @@ next_23:
             bullets(a).alive = false
             lives = lives - 1
 
+            ResetPlayerPos
             ExplosionFx bullets(a).cx, bullets(a).cy
 
             GOTO next_108
@@ -592,22 +716,27 @@ DIM cond_x AS INTEGER, cond_y AS INTEGER
 
 FOR a = 1 TO UBOUND(enemies)
 
-IF NOT enemies(a).alive THEN GOTO next_47
+IF NOT enemies(a).alive THEN GOTO next_65
 
 enemies(a).left = enemies(a).left + enemies(a).vx
 enemies(a).top = enemies(a).top + enemies(a).vy
 
 
 ' Check collision with player
-cond_x = enemies(a).left - 8 <= pleft AND pleft + 8 <= enemies(a).left + 17
-cond_y = enemies(a).top - 8 <= ptop AND ptop + 8 <= enemies(a).top + 17
+cond_x = enemies(a).left <= pleft AND pleft <= enemies(a).left + 24
+cond_y = enemies(a).top <= ptop AND ptop <= enemies(a).top + 24
 
-IF cond_x AND cond_y THEN
+' IF cond_x AND cond_y THEN
+IF IntersectBox(pleft, ptop, enemies(a).left, enemies(a).top) THEN
     lives = lives - 1
     enemies(a).alive = false
     score = score + 100
 
-    GOTO next_47
+    ResetPlayerPos
+    ExplosionFx CSNG(pleft), CSNG(ptop)
+    ExplosionFx enemies(a).left, enemies(a).top
+
+    GOTO next_65
 END IF
 
 
@@ -645,7 +774,7 @@ ELSEIF enemies(a).top > 191 THEN
     enemies(a).top = 191
 END IF
 
-next_47:
+next_65:
 
 NEXT
 
@@ -661,7 +790,7 @@ IF enemy_spawn_t <= 0 THEN
 
         enemies(a).alive = true
         enemies(a).left = Rng(9, scrw - 9)
-        enemies(a).top = 9
+        enemies(a).top = 0
 
         ResetEnemyVel enemies(a)
 
@@ -701,6 +830,74 @@ particles(a).colour_idx = particles(a).colour_idx MOD 4 + 1
 next_42:
 
 NEXT
+
+END SUB
+
+SUB UpdatePowerupHit ()
+
+DIM a AS INTEGER, b AS INTEGER
+DIM cond_x AS INTEGER, cond_y AS INTEGER
+
+FOR a = 1 TO UBOUND(powerups)
+
+IF powerups(a).alive THEN
+
+    ' cond_x = powerups(a).left <= pleft - 8 AND pleft + 8 <= powerups(a).left + 24
+    ' cond_y = powerups(a).top <= ptop - 8 AND ptop + 8 <= powerups(a).top + 24
+
+
+    ' IF cond_x AND cond_y THEN
+
+    IF IntersectBox(pleft, ptop, powerups(a).left, powerups(a).top) THEN
+
+    powerups(a).alive = false
+
+    SELECT CASE powerups(a).kind
+    CASE pu_nuke
+        FOR b = 1 TO UBOUND(enemies)
+            IF enemies(b).alive THEN
+            ExplosionFx enemies(b).left, enemies(b).top
+            enemies(b).alive = false
+            score = score + 100
+            END IF
+        NEXT
+    CASE pu_life
+        lives = lives + 1
+    END SELECT
+    END IF
+
+END IF
+
+NEXT
+
+END SUB
+
+SUB UpdatePowerupSpawn ()
+
+DIM a AS INTEGER
+
+powerup_spawn_t = powerup_spawn_t - delta_t
+
+IF powerup_spawn_t > 0 THEN EXIT SUB
+
+FOR a = 1 TO UBOUND(powerups)
+
+IF NOT powerups(a).alive THEN
+    powerups(a).alive = true
+    powerups(a).left = Rng(1, scrw \ 9) * 9
+    powerups(a).top = Rng(1, (scrh - 20) \ 9) * 9
+
+    powerups(a).kind = Rng(1, 4)
+    IF powerups(a).kind = 2 THEN
+        powerups(a).kind = 1
+    END IF
+
+    EXIT FOR
+END IF
+
+NEXT
+    
+powerup_spawn_t = powerup_spawn_interval
 
 END SUB
 
