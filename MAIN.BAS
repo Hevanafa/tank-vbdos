@@ -1,10 +1,10 @@
+DECLARE SUB KillPlayer ()
 DECLARE FUNCTION ScrY (y!) AS INTEGER
 DECLARE SUB DrawPowerup (p AS ANY)
 DECLARE SUB KillBullet (b AS ANY)
 DECLARE SUB DrawBullet (b AS ANY)
 DECLARE SUB DrawWall (w AS ANY)
 DECLARE FUNCTION IntersectBox (x1!, y1!, x2!, y2!) AS INTEGER
-DECLARE FUNCTION Intersects (x1!, y1!, x2!, y2!) AS INTEGER
 DECLARE FUNCTION Max! (a!, b!)
 DECLARE FUNCTION Min! (a!, b!)
 DECLARE SUB UpdatePowerupHit ()
@@ -31,7 +31,7 @@ DECLARE SUB DrawRegion (xdest AS INTEGER, ydest AS INTEGER, w AS INTEGER, h AS I
 DECLARE SUB LoadSprites ()
 DECLARE SUB Shoot ()
 DECLARE SUB CheckInputs ()
-DECLARE FUNCTION Rng& (Min&, Max&)
+DECLARE FUNCTION Rng& (a&, z&)
 
 
 OPTION EXPLICIT
@@ -175,8 +175,9 @@ DIM last_t
 DIM SHARED delta_t
 DIM fps_t
 DIM last_fps AS INTEGER, fps AS INTEGER
-
-
+DIM frameskip_lim AS INTEGER, frameskip_count AS INTEGER
+frameskip_lim = 1
+                         
 
 CLS
 DrawWalls
@@ -196,19 +197,29 @@ UpdateParticles
 
 ' Draw
 
-' CLS
+' IF last_fps >= 60 THEN
+' END IF
 
-DrawHUD
+frameskip_count = frameskip_count + 1
+
+IF frameskip_count >= frameskip_lim THEN
+frameskip_count = 0
+
+CLS
+
+'DrawWalls
+'DrawPowerups
+DrawBullets
 DrawPlayer
 DrawEnemies
-DrawBullets
-' DrawPowerups
 DrawParticles
+
+DrawHUD
+END IF
 
 
 IF last_t > 0 THEN
     delta_t = TIMER - last_t
-    ' total_t = total_t + delta_t
     total_t = TIMER - start_t
     fps_t = fps_t + delta_t
 
@@ -528,6 +539,15 @@ DrawBullet b
 
 END SUB
 
+SUB KillPlayer ()
+
+lives = lives - 1
+
+ExplosionFx pleft, ptop
+ResetPlayerPos
+
+END SUB
+
 SUB LoadMap ()
 
 DIM a AS INTEGER, b AS INTEGER
@@ -619,9 +639,9 @@ ptop = scrh - 10    ' Rng(1, scrh \ 9) * 9
 
 END SUB
 
-FUNCTION Rng& (Min&, Max&)
+FUNCTION Rng& (a&, z&)
 
-Rng = CLNG(FIX((Max& - Min& + 1) * RND) + Min&)
+Rng = CLNG(FIX((z& - a& + 1) * RND) + a&)
 
 END FUNCTION
 
@@ -718,11 +738,7 @@ IF bullets(a).harm_player THEN
 
     IF x_cond AND y_cond THEN
         KillBullet bullets(a)
-
-        lives = lives - 1
-
-        ResetPlayerPos
-        ExplosionFx bullets(a).cx, bullets(a).cy
+        KillPlayer
 
         GOTO next_108
     END IF
@@ -774,14 +790,11 @@ cond_y = enemies(a).top <= ptop AND ptop <= enemies(a).top + 24
 
 ' IF cond_x AND cond_y THEN
 IF IntersectBox(pleft, ptop, enemies(a).left, enemies(a).top) THEN
-    lives = lives - 1
+    KillPlayer
     enemies(a).alive = false
     score = score + 100
 
-    ExplosionFx CSNG(pleft), CSNG(ptop)
     ExplosionFx enemies(a).left, enemies(a).top
-
-    ResetPlayerPos
 
     GOTO next_65
 END IF
