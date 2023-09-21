@@ -68,6 +68,7 @@ powerup_spawn_t = powerup_spawn_interval
 LoadMap
 LoadSpritesheet
 
+pimmune_t = 3
 lives = 3
 dir = d_up
 
@@ -100,26 +101,24 @@ UpdateEnemySpawn
 UpdateEnemyMovement
 UpdateParticles
 
+IF speed_t > 0 THEN
+  speed_t = speed_t - delta_t
+END IF
+
+IF pimmune_t > 0 THEN
+  pimmune_t = pimmune_t - delta_t
+END IF
+
 IF shake_t > 0 THEN
-    shake_x = Rng(-3, 3)
-    shake_y = Rng(-3, 3)
-    shake_t = shake_t - delta_t
+  shake_x = Rng(-3, 3)
+  shake_y = Rng(-3, 3)
+  shake_t = shake_t - delta_t
 END IF
 
 
 ' Draw
 
-' IF last_fps >= 60 THEN
-' END IF
-
-frameskip_count = frameskip_count + 1
-
-IF frameskip_count >= frameskip_lim THEN
-frameskip_count = 0
-
 ' CLS
-
-
 ClrMap
 
 ' game map border
@@ -133,22 +132,20 @@ DrawEnemies
 DrawParticles
 
 DrawHUD
-END IF
 
 
 IF last_t > 0 THEN
-    delta_t = TIMER - last_t
-    total_t = TIMER - start_t
-    fps_t = fps_t + delta_t
+  delta_t = TIMER - last_t
+  total_t = TIMER - start_t
+  fps_t = fps_t + delta_t
 
-    IF fps_t >= 1 THEN
+  IF fps_t >= 1 THEN
     fps_t = 0
     last_fps = fps
     fps = 0
-
-    END IF
+  END IF
 ELSE
-    start_t = TIMER
+  start_t = TIMER
 END IF
 
 LOCATE 1, 33
@@ -166,7 +163,10 @@ PCOPY 0, 1
 WAIT &H3DA, 8
 WAIT &H3DA, 8, 8
 
-LOOP
+LOOP UNTIL end_game
+
+
+SCREEN 0
 
 SUB ClrMap ()
 
@@ -183,19 +183,19 @@ IF NOT B.alive THEN colour = 0
 
 IF B.vx <> 0 THEN
 
-    ' LINE (B.cx - B.vx * 2, ScrY(B.cy))-(B.cx, ScrY(B.cy)), 0
+  ' LINE (B.cx - B.vx * 2, ScrY(B.cy))-(B.cx, ScrY(B.cy)), 0
 
-    IF B.alive THEN
-        LINE (ScrX(B.cx - 2), ScrY(B.cy))-(ScrX(B.cx + 2), ScrY(B.cy)), colour
-    END IF
+  IF B.alive THEN
+    LINE (ScrX(B.cx - 2), ScrY(B.cy))-(ScrX(B.cx + 2), ScrY(B.cy)), colour
+  END IF
 
 ELSEIF B.vy <> 0 THEN
 
-    ' LINE (B.cx, ScrY(B.cy) - B.vy * 2)-(B.cx, ScrY(B.cy)), 0
+  ' LINE (B.cx, ScrY(B.cy) - B.vy * 2)-(B.cx, ScrY(B.cy)), 0
 
-    IF B.alive THEN
-        LINE (ScrX(B.cx), ScrY(B.cy) - 2)-(ScrX(B.cx), ScrY(B.cy) + 2), colour
-    END IF
+  IF B.alive THEN
+    LINE (ScrX(B.cx), ScrY(B.cy) - 2)-(ScrX(B.cx), ScrY(B.cy) + 2), colour
+  END IF
 END IF
 
 
@@ -365,8 +365,8 @@ IF Firsttime = 0 THEN
  code$ = code$ + "5B589DCF"
  DEF SEG = VARSEG(kbcontrol%(1))
  FOR i% = 0 TO 155                     ' Load ASM
-     d% = VAL("&h" + MID$(code$, i% * 2 + 1, 2))
-     POKE VARPTR(kbcontrol%(1)) + i%, d%
+   d% = VAL("&h" + MID$(code$, i% * 2 + 1, 2))
+   POKE VARPTR(kbcontrol%(1)) + i%, d%
  NEXT i%
  i& = 16       ' I think this stuff connects the interrupt with kbmatrix%()
  n& = VARSEG(kbmatrix%(1)): l& = n& AND 255: h& = ((n& AND &HFF00) \ 256): POKE i&, l&: POKE i& + 1, h&: i& = i& + 2
@@ -516,25 +516,25 @@ bullets(a).cy = bullets(a).cy + bullets(a).vy
 
 ' Check bounds
 IF bullets(a).cx < 0 OR bullets(a).cx > mapw OR bullets(a).cy < 0 OR bullets(a).cy > maph THEN
-    bullets(a).alive = false
-    GOTO next_108
+  bullets(a).alive = false
+  GOTO next_108
 END IF
 
 ' Check walls
 
 FOR B = 1 TO UBOUND(walls)
 
-IF walls(B).hp <= 0 THEN GOTO next_23
+  IF walls(B).hp <= 0 THEN GOTO next_23
 
-x_cond = walls(B).left <= bullets(a).cx AND bullets(a).cx <= walls(B).left + 8
-y_cond = walls(B).top <= bullets(a).cy AND bullets(a).cy <= walls(B).top + 8
+  x_cond = walls(B).left <= bullets(a).cx AND bullets(a).cx <= walls(B).left + 9
+  y_cond = walls(B).top <= bullets(a).cy AND bullets(a).cy <= walls(B).top + 9
 
-IF x_cond AND y_cond THEN
+  IF x_cond AND y_cond THEN
     KillBullet bullets(a)
     walls(B).hp = walls(B).hp - 1
     DrawWall walls(B)
     GOTO next_108
-END IF
+  END IF
 
 next_23:
 
@@ -582,30 +582,51 @@ END SUB
 
 SUB UpdateEnemyMovement ()
 
-DIM a AS INTEGER
+DIM a AS INTEGER, B AS INTEGER
 DIM cond_x AS INTEGER, cond_y AS INTEGER
 
 FOR a = 1 TO UBOUND(enemies)
 
-IF NOT enemies(a).alive THEN GOTO next_65
+IF NOT enemies(a).alive THEN GOTO next_uem
 
 enemies(a).left = enemies(a).left + enemies(a).vx
 enemies(a).top = enemies(a).top + enemies(a).vy
 
+' Check collision with walls
+FOR B = 1 TO UBOUND(walls)
+  IF walls(B).hp <= 0 THEN GOTO next_uem_w
+
+  IF IntersectBox(enemies(a).left, enemies(a).top, walls(B).left, walls(B).top) THEN
+
+    IF enemies(a).vx > 0 THEN
+      enemies(a).left = walls(B).left - 9
+    ELSEIF enemies(a).vx < 0 THEN
+      enemies(a).left = walls(B).left + 9
+    END IF
+
+    IF enemies(a).vy > 0 THEN
+      enemies(a).top = walls(B).top - 9
+    ELSEIF enemies(a).vy < 0 THEN
+      enemies(a).top = walls(B).top + 9
+    END IF
+
+    EXIT FOR
+
+  END IF
+next_uem_w:
+
+NEXT
+
 
 ' Check collision with player
-cond_x = enemies(a).left <= pleft AND pleft <= enemies(a).left + 24
-cond_y = enemies(a).top <= ptop AND ptop <= enemies(a).top + 24
-
-' IF cond_x AND cond_y THEN
 IF IntersectBox(pleft, ptop, enemies(a).left, enemies(a).top) THEN
-    KillPlayer
-    enemies(a).alive = false
-    score = score + 100
+  KillPlayer
+  enemies(a).alive = false
+  score = score + 100
 
-    ExplosionFx enemies(a).left, enemies(a).top
+  ExplosionFx enemies(a).left, enemies(a).top
 
-    GOTO next_65
+  GOTO next_uem
 END IF
 
 
@@ -613,14 +634,13 @@ END IF
 enemies(a).change_dir_t = enemies(a).change_dir_t - delta_t
 
 IF enemies(a).change_dir_t <= 0 THEN
-    enemies(a).change_dir_t = Rng(1, 3)
+  enemies(a).change_dir_t = Rng(1, 3)
 
-    ResetEnemyVel enemies(a)
-
+  ResetEnemyVel enemies(a)
 END IF
 
 
-' Update shoot t
+' Shooting
 enemies(a).shoot_t = enemies(a).shoot_t - delta_t
 
 IF enemies(a).shoot_t <= 0 THEN
@@ -643,7 +663,7 @@ ELSEIF enemies(a).top > maph - 9 THEN
     enemies(a).top = maph - 9
 END IF
 
-next_65:
+next_uem:
 
 NEXT
 

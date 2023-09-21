@@ -1,3 +1,6 @@
+DECLARE FUNCTION IntersectBox (x1!, y1!, x2!, y2!) AS INTEGER
+DECLARE SUB ShiftX (x!)
+DECLARE SUB ShiftY (y!)
 DECLARE SUB UnhookInterrupt ()
 DECLARE SUB ExplosionFx (cx!, cy!)
 DECLARE SUB ResetPlayerPos ()
@@ -14,52 +17,50 @@ SUB CheckInputs ()
 
 ' KEYB(N + 1) because it's BASE 1
 
-IF KEYB(58) OR KEYB(78) OR KEYB(76) THEN
-    UnhookInterrupt
-    END
+' ESC or "q"
+IF KEYB(2) OR KEYB(17) THEN
+  UnhookInterrupt
+  end_game = true
+  EXIT SUB
 END IF
 
-EXIT SUB
-
-DIM k AS STRING
-k = INKEY$
-
-SELECT CASE k
-CASE " ", "z", "x"
+' SPACEBAR, "z", "x"
+IF KEYB(58) OR KEYB(45) OR KEYB(46) THEN
+  IF NOT last_shoot THEN
+    last_shoot = true
     Shoot
-CASE CHR$(27), "q"
-    UnhookInterrupt
-    END
-CASE ELSE
+  END IF
+ELSE : last_shoot = false
+END IF
 
-IF LEN(k) > 1 THEN ' PRINT STR$(ASC(k))
 
-DIM r$
-r$ = RIGHT$(k, 1)
-SELECT CASE r$
-CASE "H"
-    ptop = ptop - 5
+DIM has_speed: has_speed = speed_t > 0
+
+DIM vel
+IF has_speed THEN
+  vel = 4
+ELSE : vel = 2
+END IF
+
+' The player can only move in 1 direction
+IF KEYB(KEYUP) THEN
+    ShiftY -vel
     dir = d_up
-CASE "P"
-    ptop = ptop + 5
+ELSEIF KEYB(KEYDOWN) THEN
+    ShiftY vel
     dir = d_down
-
-CASE "K"
-    pleft = pleft - 5
+ELSEIF KEYB(KEYLEFT) THEN
+    ShiftX -vel
     dir = d_left
-CASE "M"
-    pleft = pleft + 5
+ELSEIF KEYB(KEYRIGHT) THEN
+    ShiftX vel
     dir = d_right
-END SELECT
+END IF
 
 IF pleft < 0 THEN pleft = 0
 IF pleft > mapw - 9 THEN pleft = mapw - 9
 IF ptop < 0 THEN ptop = 0
 IF ptop > maph - 9 THEN ptop = maph - 9
-
-END IF
-
-END SELECT
 
 END SUB
 
@@ -78,13 +79,23 @@ END SUB
 
 SUB DrawPlayer ()
 
-DrawRegion ScrX(pleft), ScrY(ptop), 9, 9, (dir - 1) * 9, 0
+STATIC blink_on AS INTEGER
+
+IF pimmune_t > 0 AND blink_on OR pimmune_t <= 0 THEN
+  DrawRegion ScrX(pleft), ScrY(ptop), 9, 9, (dir - 1) * 9, 0
+END IF
+
+IF pimmune_t > 0 THEN
+  blink_on = NOT blink_on
+  CIRCLE (ScrX(pleft + 4), ScrY(ptop + 4)), 6, lcyan, 0, 2 * PI, 1
+END IF
 
 END SUB
 
 SUB KillPlayer ()
 
 lives = lives - 1
+pimmune_t = 3
 
 ExplosionFx pleft, ptop
 ResetPlayerPos
@@ -94,7 +105,66 @@ END SUB
 SUB ResetPlayerPos ()
 
 pleft = Rng(1, mapw \ 9) * 9
-ptop = maph - 10    ' Rng(1, scrh \ 9) * 9
+ptop = maph - 10
+
+END SUB
+
+SUB ShiftPlayer (x, y)
+
+ShiftX x
+ShiftY y
+
+END SUB
+
+SUB ShiftX (x)
+
+pleft = pleft + x
+
+DIM a AS INTEGER
+
+FOR a = 1 TO UBOUND(walls)
+
+IF walls(a).hp <= 0 THEN GOTO next_shx
+
+IF IntersectBox(pleft, ptop, walls(a).left, walls(a).top) THEN
+
+IF x > 0 THEN
+    pleft = walls(a).left - 9
+ELSE
+    pleft = walls(a).left + 9
+END IF
+
+END IF
+
+next_shx:
+
+NEXT
+
+END SUB
+
+SUB ShiftY (y)
+
+ptop = ptop + y
+
+DIM a AS INTEGER
+
+FOR a = 1 TO UBOUND(walls)
+
+IF walls(a).hp <= 0 THEN GOTO next_shy
+
+IF IntersectBox(pleft, ptop, walls(a).left, walls(a).top) THEN
+
+IF y > 0 THEN
+    ptop = walls(a).top - 9
+ELSE
+    ptop = walls(a).top + 9
+END IF
+
+END IF
+
+next_shy:
+
+NEXT
 
 END SUB
 

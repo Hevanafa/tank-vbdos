@@ -61,6 +61,8 @@ END TYPE
 COMMON SHARED pleft AS SINGLE, ptop AS SINGLE
 COMMON SHARED score AS LONG
 COMMON SHARED lives
+' speed boost
+COMMON SHARED speed_t
 
 COMMON SHARED shake_x, shake_y
 COMMON SHARED shake_t
@@ -105,12 +107,18 @@ CONST lmagenta% = 13
 CONST lyellow% = 14
 CONST bwhite% = 15
 
+' N + 1 because it's BASE 1
+CONST KEYUP = 73
+CONST KEYLEFT = 76
+CONST KEYRIGHT = 78
+CONST KEYDOWN = 81
 
 CONST d_up = 1
 CONST d_right = 2
 CONST d_down = 3
 CONST d_left = 4
 
+COMMON SHARED end_game AS INTEGER
 COMMON SHARED dir AS INTEGER
 
 COMMON SHARED enemy_spawn_interval, enemy_spawn_t
@@ -125,4 +133,5 @@ COMMON SHARED spritesheet() AS INTEGER
 COMMON SHARED bmp_w AS INTEGER, bmp_h AS INTEGER
 
 COMMON SHARED delta_t
+COMMON SHARED last_shoot AS INTEGER
 
