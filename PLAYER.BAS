@@ -1,3 +1,4 @@
+DECLARE SUB UnhookInterrupt ()
 DECLARE SUB ExplosionFx (cx!, cy!)
 DECLARE SUB ResetPlayerPos ()
 DECLARE SUB Shoot ()
@@ -5,19 +6,29 @@ DECLARE SUB DrawRegion (xdest AS INTEGER, ydest AS INTEGER, w AS INTEGER, h AS I
 DECLARE FUNCTION ScrX (x!) AS INTEGER
 DECLARE FUNCTION ScrY (y!) AS INTEGER
 DECLARE FUNCTION Rng& (a&, z&)
+DECLARE FUNCTION KEYB (T%)
 
 '$INCLUDE: 'globals.bi'
 
 SUB CheckInputs ()
 
+' KEYB(N + 1) because it's BASE 1
+
+IF KEYB(58) OR KEYB(78) OR KEYB(76) THEN
+    UnhookInterrupt
+    END
+END IF
+
+EXIT SUB
+
 DIM k AS STRING
 k = INKEY$
-
 
 SELECT CASE k
 CASE " ", "z", "x"
     Shoot
 CASE CHR$(27), "q"
+    UnhookInterrupt
     END
 CASE ELSE
 
