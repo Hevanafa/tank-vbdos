@@ -349,51 +349,81 @@ FUNCTION KEYB (T AS INTEGER)
 
 ' T: -1, -2 or 1..128
 
-DIM code$, i%, d%, i&, n&, l&, h&
-STATIC kbcontrol%(), kbmatrix%(), Firsttime, StatusFlag
+STATIC kbcontrol%(), kbmatrix%()
+STATIC Firsttime AS INTEGER, StatusFlag AS INTEGER
 
 ' Initialize
 IF Firsttime = 0 THEN
- DIM kbcontrol%(128)
- DIM kbmatrix%(128)
- code$ = ""
- code$ = code$ + "E91D00E93C00000000000000000000000000000000000000000000000000"
- code$ = code$ + "00001E31C08ED8BE24000E07BF1400FCA5A58CC38EC0BF2400B85600FAAB"
- code$ = code$ + "89D8ABFB1FCB1E31C08EC0BF2400BE14000E1FFCFAA5A5FB1FCBFB9C5053"
- code$ = code$ + "51521E560657E460B401A8807404B400247FD0E088C3B700B0002E031E12"
- code$ = code$ + "002E8E1E100086E08907E4610C82E661247FE661B020E6205F075E1F5A59"
- code$ = code$ + "5B589DCF"
- DEF SEG = VARSEG(kbcontrol%(1))
- FOR i% = 0 TO 155                     ' Load ASM
-   d% = VAL("&h" + MID$(code$, i% * 2 + 1, 2))
-   POKE VARPTR(kbcontrol%(1)) + i%, d%
- NEXT i%
- i& = 16       ' I think this stuff connects the interrupt with kbmatrix%()
- n& = VARSEG(kbmatrix%(1)): l& = n& AND 255: h& = ((n& AND &HFF00) \ 256): POKE i&, l&: POKE i& + 1, h&: i& = i& + 2
- n& = VARPTR(kbmatrix%(1)): l& = n& AND 255: h& = ((n& AND &HFF00) \ 256): POKE i&, l&: POKE i& + 1, h&: i& = i& + 2
- DEF SEG
- Firsttime = 1
+  DIM kbcontrol%(128)
+  DIM kbmatrix%(128)
+
+  DIM code$
+  code$ = ""
+  code$ = code$ + "E91D00E93C00000000000000000000000000000000000000000000000000"
+  code$ = code$ + "00001E31C08ED8BE24000E07BF1400FCA5A58CC38EC0BF2400B85600FAAB"
+  code$ = code$ + "89D8ABFB1FCB1E31C08EC0BF2400BE14000E1FFCFAA5A5FB1FCBFB9C5053"
+  code$ = code$ + "51521E560657E460B401A8807404B400247FD0E088C3B700B0002E031E12"
+  code$ = code$ + "002E8E1E100086E08907E4610C82E661247FE661B020E6205F075E1F5A59"
+  code$ = code$ + "5B589DCF"
+
+  DEF SEG = VARSEG(kbcontrol%(1))
+
+  DIM i AS INTEGER, d AS INTEGER
+
+  ' Load ASM
+  FOR i = 0 TO 155
+    d = VAL("&h" + MID$(code$, i * 2 + 1, 2))
+    POKE VARPTR(kbcontrol%(1)) + i, d
+  NEXT
+
+  DIM j AS LONG
+  DIM n AS LONG, L AS LONG, h AS LONG
+
+  ' i& --> j
+
+  ' I think this stuff connects the interrupt with kbmatrix%()
+  j = 16
+  n = VARSEG(kbmatrix%(1))
+  L = n AND 255
+  h = ((n AND &HFF00) \ 256)
+  POKE j, L
+  POKE j + 1, h
+  j = j + 2
+
+  n = VARPTR(kbmatrix%(1))
+  L = n AND 255
+  h = ((n AND &HFF00) \ 256)
+  POKE j, L
+  POKE j + 1, h
+  j = j + 2
+
+  DEF SEG
+  Firsttime = true
 END IF
 
 SELECT CASE T
- CASE -1
-  IF StatusFlag = 0 THEN
-   DEF SEG = VARSEG(kbcontrol%(1))
-   CALL ABSOLUTE(0)                     ' Run interrupt
-   DEF SEG
-   StatusFlag = 1
-  END IF
- CASE -2
-  IF StatusFlag = 1 THEN
-   DEF SEG = VARSEG(kbcontrol%(1))      ' Turn off interrupt
-   CALL ABSOLUTE(3)
-   DEF SEG
-   StatusFlag = 0
-  END IF
- CASE 1 TO 128
-  KEYB = kbmatrix%(T)               ' Return status
- CASE ELSE
-  KEYB = 0                          ' User Stupidity Error
+  CASE -1
+    IF StatusFlag = 0 THEN
+      DEF SEG = VARSEG(kbcontrol%(1))
+      ' Run interrupt
+      CALL ABSOLUTE(0)
+      DEF SEG
+      StatusFlag = 1
+    END IF
+  CASE -2
+    IF StatusFlag = 1 THEN
+      ' Turn off interrupt
+      DEF SEG = VARSEG(kbcontrol%(1))
+      CALL ABSOLUTE(3)
+      DEF SEG
+      StatusFlag = 0
+    END IF
+  CASE 1 TO 128
+    ' Return status
+    KEYB = kbmatrix%(T)
+  CASE ELSE
+    ' User Stupidity Error
+    KEYB = 0
 END SELECT
 
 END FUNCTION

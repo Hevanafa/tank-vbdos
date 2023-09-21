@@ -1,4 +1,4 @@
-OPTION EXPLICIT
+' OPTION EXPLICIT
 OPTION BASE 1
 DEFSNG A-Z
 
@@ -89,7 +89,10 @@ CONST pu_freeze = 5
 CONST pu_autoshot = 6
 CONST pu_pierce = 7
 
-CONST PI# = 3.1415926535#
+' CONST PI# = 3.1415926535#
+' rounded down
+CONST PI! = 3.141592
+
 CONST black% = 0
 CONST blue% = 1
 CONST green% = 2
