@@ -43,13 +43,12 @@ CONST false = 0
 CONST true = NOT false
 
 ' screen width & height
-CONST ScrW = 320
+CONST scrw = 320
 CONST scrh = 200
 
 ' 9px x 15
 CONST mapw = 135
 CONST maph = 135
-
 
 CONST pu_nuke = 1
 CONST pu_speed = 3
@@ -63,6 +62,7 @@ TYPE wall
     hp AS INTEGER
     top AS SINGLE
     left AS SINGLE
+    iron AS INTEGER
 END TYPE
 
 
@@ -136,6 +136,8 @@ DIM SHARED bmp_w AS INTEGER, bmp_h AS INTEGER
 RANDOMIZE TIMER
 DIM a AS INTEGER
 
+DIM SHARED shake_x, shake_y
+DIM SHARED shake_t
 DIM SHARED particles(100) AS particle
 
 ' colour table
@@ -199,6 +201,11 @@ UpdateEnemySpawn
 UpdateEnemyMovement
 UpdateParticles
 
+IF shake_t > 0 THEN
+shake_x = Rng(-3, 3)
+shake_y = Rng(-3, 3)
+shake_t = shake_t - delta_t
+END IF
 
 ' Draw
 
@@ -211,6 +218,8 @@ IF frameskip_count >= frameskip_lim THEN
 frameskip_count = 0
 
 CLS
+
+LINE (ScrX(-1), ScrY(-1))-(ScrX(0) + mapw, ScrY(0) + maph), white, B
 
 DrawWalls
 DrawPowerups
@@ -653,13 +662,23 @@ END FUNCTION
 
 FUNCTION ScrX (x) AS INTEGER
 
+IF shake_t > 0 THEN
+ScrX = FIX(92 + x + shake_x)
+EXIT FUNCTION
+END IF
+
 ScrX = FIX(92 + x)
 
 END FUNCTION
 
 FUNCTION ScrY (y) AS INTEGER
 
-ScrY = 20 + FIX(y)
+IF shake_t > 0 THEN
+ScrY = FIX(20 + y + shake_y)
+EXIT FUNCTION
+END IF
+
+ScrY = FIX(20 + y)
 
 END FUNCTION
 
@@ -856,6 +875,8 @@ SUB UpdateEnemySpawn ()
 
 DIM a AS INTEGER
 
+IF shake_t > 0 THEN EXIT SUB
+
 IF enemy_spawn_t <= 0 THEN
     FOR a = 1 TO UBOUND(enemies)
     IF enemies(a).alive THEN GOTO next_128
@@ -927,6 +948,8 @@ IF IntersectBox(pleft, ptop, powerups(a).left, powerups(a).top) THEN
             score = score + 100
             END IF
         NEXT
+
+        shake_t = 2
     CASE pu_life
         lives = lives + 1
     END SELECT
