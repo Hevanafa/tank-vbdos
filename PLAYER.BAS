@@ -34,7 +34,7 @@ ELSE : last_shoot = false
 END IF
 
 
-DIM has_speed: has_speed = speed_t > 0
+DIM has_speed: has_speed = pspeed_t > 0
 
 DIM vel
 IF has_speed THEN
@@ -96,6 +96,7 @@ SUB KillPlayer ()
 
 lives = lives - 1
 pimmune_t = 3
+pspeed_t = 0
 
 ExplosionFx pleft + 4, ptop + 4
 ResetPlayerPos
@@ -173,33 +174,33 @@ SUB Shoot ()
 CONST vel = 4
 DIM a%
 
-' find a dead bullet
 FOR a% = 1 TO UBOUND(bullets)
-IF NOT bullets(a%).alive THEN
+  IF bullets(a%).alive THEN GOTO next_sh
 
-bullets(a%).alive = true
-bullets(a%).harm_player = false
+  bullets(a%).alive = true
+  bullets(a%).harm_player = false
 
-bullets(a%).cx = pleft + 4
-bullets(a%).cy = ptop + 4
-bullets(a%).vx = 0
-bullets(a%).vy = 0
+  bullets(a%).cx = pleft + 4
+  bullets(a%).cy = ptop + 4
+  bullets(a%).vx = 0
+  bullets(a%).vy = 0
 
-SELECT CASE dir
-CASE d_up
-bullets(a%).vy = -vel
-CASE d_down
-bullets(a%).vy = vel
+  SELECT CASE dir
+  CASE d_up
+    bullets(a%).vy = -vel
+  CASE d_down
+    bullets(a%).vy = vel
 
-CASE d_left
-bullets(a%).vx = -vel
-CASE d_right
-bullets(a%).vx = vel
-END SELECT
+  CASE d_left
+    bullets(a%).vx = -vel
+  CASE d_right
+    bullets(a%).vx = vel
+  END SELECT
 
-EXIT FOR
+  EXIT FOR
 
-END IF
+next_sh:
+
 NEXT
 
 END SUB

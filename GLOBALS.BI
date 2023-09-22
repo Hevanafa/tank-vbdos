@@ -80,7 +80,7 @@ COMMON SHARED pleft AS SINGLE, ptop AS SINGLE
 COMMON SHARED score AS LONG
 COMMON SHARED lives
 ' speed boost
-COMMON SHARED speed_t
+COMMON SHARED pspeed_t
 
 COMMON SHARED shake_x, shake_y
 COMMON SHARED shake_t

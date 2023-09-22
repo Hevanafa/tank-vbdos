@@ -103,8 +103,8 @@ UpdateEnemySpawn
 UpdateEnemyMovement
 UpdateParticles
 
-IF speed_t > 0 THEN
-  speed_t = speed_t - delta_t
+IF pspeed_t > 0 THEN
+  pspeed_t = pspeed_t - delta_t
 END IF
 
 IF pimmune_t > 0 THEN
@@ -608,67 +608,67 @@ DIM x_cond AS INTEGER, y_cond AS INTEGER
 
 FOR a = 1 TO UBOUND(bullets)
 
-IF NOT bullets(a).alive THEN GOTO next_108
+  IF NOT bullets(a).alive THEN GOTO next_108
 
-bullets(a).cx = bullets(a).cx + bullets(a).vx
-bullets(a).cy = bullets(a).cy + bullets(a).vy
+  bullets(a).cx = bullets(a).cx + bullets(a).vx
+  bullets(a).cy = bullets(a).cy + bullets(a).vy
 
-' Check bounds
-IF bullets(a).cx < 0 OR bullets(a).cx > mapw OR bullets(a).cy < 0 OR bullets(a).cy > maph THEN
-  bullets(a).alive = false
-  GOTO next_108
-END IF
-
-' Check walls
-
-FOR b = 1 TO UBOUND(walls)
-
-  IF walls(b).hp <= 0 THEN GOTO next_23
-
-  x_cond = walls(b).left <= bullets(a).cx AND bullets(a).cx <= walls(b).left + 9
-  y_cond = walls(b).top <= bullets(a).cy AND bullets(a).cy <= walls(b).top + 9
-
-  IF x_cond AND y_cond THEN
-    KillBullet bullets(a)
-    walls(b).hp = walls(b).hp - 1
-    DrawWall walls(b)
+  ' Check bounds
+  IF bullets(a).cx < 0 OR bullets(a).cx > mapw OR bullets(a).cy < 0 OR bullets(a).cy > maph THEN
+    bullets(a).alive = false
     GOTO next_108
   END IF
+
+  ' Check walls
+
+  FOR b = 1 TO UBOUND(walls)
+
+    IF walls(b).hp <= 0 THEN GOTO next_23
+
+    x_cond = walls(b).left <= bullets(a).cx AND bullets(a).cx <= walls(b).left + 9
+    y_cond = walls(b).top <= bullets(a).cy AND bullets(a).cy <= walls(b).top + 9
+
+    IF x_cond AND y_cond THEN
+      KillBullet bullets(a)
+      walls(b).hp = walls(b).hp - 1
+      DrawWall walls(b)
+      GOTO next_108
+    END IF
 
 next_23:
 
-NEXT
+  NEXT
 
 
-IF bullets(a).harm_player THEN
-  x_cond = pleft <= bullets(a).cx AND bullets(a).cx <= pleft + 8
-  y_cond = ptop <= bullets(a).cy AND bullets(a).cy <= ptop + 8
-
-  IF x_cond AND y_cond THEN
-    KillBullet bullets(a)
-    KillPlayer
-
-    GOTO next_108
-  END IF
-ELSE
-  FOR b = 1 TO UBOUND(enemies)
-    IF enemies(b).alive THEN
-
-    x_cond = enemies(b).left <= bullets(a).cx AND bullets(a).cx <= enemies(b).left + 8
-    y_cond = enemies(b).top <= bullets(a).cy AND bullets(a).cy <= enemies(b).top + 8
+  IF pimmune_t <= 0 AND bullets(a).harm_player THEN
+    x_cond = pleft <= bullets(a).cx AND bullets(a).cx <= pleft + 8
+    y_cond = ptop <= bullets(a).cy AND bullets(a).cy <= ptop + 8
 
     IF x_cond AND y_cond THEN
-        KillBullet bullets(a)
-        KillEnemy enemies(b)
+      KillBullet bullets(a)
+      KillPlayer
 
-        score = score + 100
-
-        GOTO next_108
+      GOTO next_108
     END IF
+  ELSE
+    FOR b = 1 TO UBOUND(enemies)
+      IF enemies(b).alive THEN
 
-    END IF
-  NEXT
-END IF
+      x_cond = enemies(b).left <= bullets(a).cx AND bullets(a).cx <= enemies(b).left + 8
+      y_cond = enemies(b).top <= bullets(a).cy AND bullets(a).cy <= enemies(b).top + 8
+
+      IF x_cond AND y_cond THEN
+          KillBullet bullets(a)
+          KillEnemy enemies(b)
+
+          score = score + 100
+
+          GOTO next_108
+      END IF
+
+      END IF
+    NEXT
+  END IF
 
 next_108:
 NEXT
@@ -682,39 +682,39 @@ DIM cond_x AS INTEGER, cond_y AS INTEGER
 
 FOR a = 1 TO UBOUND(enemies)
 
-IF NOT enemies(a).alive THEN GOTO next_uem
+  IF NOT enemies(a).alive THEN GOTO next_uem
 
-enemies(a).left = enemies(a).left + enemies(a).vx
-enemies(a).top = enemies(a).top + enemies(a).vy
+  enemies(a).left = enemies(a).left + enemies(a).vx
+  enemies(a).top = enemies(a).top + enemies(a).vy
 
-' Check collision with walls
-FOR b = 1 TO UBOUND(walls)
-  IF walls(b).hp <= 0 THEN GOTO next_uem_w
+  ' Check collision with walls
+  FOR b = 1 TO UBOUND(walls)
+    IF walls(b).hp <= 0 THEN GOTO next_uem_w
 
-  IF IntersectBox(enemies(a).left, enemies(a).top, walls(b).left, walls(b).top) THEN
+    IF IntersectBox(enemies(a).left, enemies(a).top, walls(b).left, walls(b).top) THEN
 
-    IF enemies(a).vx > 0 THEN
-      enemies(a).left = walls(b).left - 9
-    ELSEIF enemies(a).vx < 0 THEN
-      enemies(a).left = walls(b).left + 9
+      IF enemies(a).vx > 0 THEN
+        enemies(a).left = walls(b).left - 9
+      ELSEIF enemies(a).vx < 0 THEN
+        enemies(a).left = walls(b).left + 9
+      END IF
+
+      IF enemies(a).vy > 0 THEN
+        enemies(a).top = walls(b).top - 9
+      ELSEIF enemies(a).vy < 0 THEN
+        enemies(a).top = walls(b).top + 9
+      END IF
+
+      EXIT FOR
+
     END IF
-
-    IF enemies(a).vy > 0 THEN
-      enemies(a).top = walls(b).top - 9
-    ELSEIF enemies(a).vy < 0 THEN
-      enemies(a).top = walls(b).top + 9
-    END IF
-
-    EXIT FOR
-
-  END IF
 next_uem_w:
 
-NEXT
+  NEXT
 
 
 ' Check collision with player
-IF IntersectBox(pleft, ptop, enemies(a).left, enemies(a).top) THEN
+IF pimmune_t <= 0 AND IntersectBox(pleft, ptop, enemies(a).left, enemies(a).top) THEN
   KillPlayer
   enemies(a).alive = false
   score = score + 100

@@ -56,7 +56,7 @@ IF IntersectBox(pleft, ptop, powerups(a).left, powerups(a).top) THEN
 
         shake_t = 2
     CASE pu_speed
-        speed_t = 5
+        pspeed_t = 5
     CASE pu_life
         lives = lives + 1
     END SELECT
