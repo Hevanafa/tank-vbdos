@@ -1,3 +1,4 @@
+DECLARE SUB KillEnemy (e AS ANY)
 DECLARE SUB HookInterrupt ()
 DECLARE SUB UnhookInterrupt ()
 DECLARE SUB ClrMap ()
@@ -494,6 +495,15 @@ DrawBullet b
 
 END SUB
 
+SUB KillEnemy (e AS enemy)
+
+e.alive = false
+e.hp = e.hp - 1
+
+ExplosionFx e.left + 4, e.top + 4
+
+END SUB
+
 SUB LoadMap ()
 
 DIM a AS INTEGER, b AS INTEGER
@@ -631,37 +641,33 @@ NEXT
 
 
 IF bullets(a).harm_player THEN
-    x_cond = pleft <= bullets(a).cx AND bullets(a).cx <= pleft + 8
-    y_cond = ptop <= bullets(a).cy AND bullets(a).cy <= ptop + 8
+  x_cond = pleft <= bullets(a).cx AND bullets(a).cx <= pleft + 8
+  y_cond = ptop <= bullets(a).cy AND bullets(a).cy <= ptop + 8
+
+  IF x_cond AND y_cond THEN
+    KillBullet bullets(a)
+    KillPlayer
+
+    GOTO next_108
+  END IF
+ELSE
+  FOR b = 1 TO UBOUND(enemies)
+    IF enemies(b).alive THEN
+
+    x_cond = enemies(b).left <= bullets(a).cx AND bullets(a).cx <= enemies(b).left + 8
+    y_cond = enemies(b).top <= bullets(a).cy AND bullets(a).cy <= enemies(b).top + 8
 
     IF x_cond AND y_cond THEN
         KillBullet bullets(a)
-        KillPlayer
+        KillEnemy enemies(b)
+
+        score = score + 100
 
         GOTO next_108
     END IF
-ELSE
-    FOR b = 1 TO UBOUND(enemies)
-        IF enemies(b).alive THEN
 
-        x_cond = enemies(b).left <= bullets(a).cx AND bullets(a).cx <= enemies(b).left + 8
-        y_cond = enemies(b).top <= bullets(a).cy AND bullets(a).cy <= enemies(b).top + 8
-
-        IF x_cond AND y_cond THEN
-            KillBullet bullets(a)
-
-            enemies(b).alive = false
-            enemies(b).hp = enemies(b).hp - 1
-
-            ExplosionFx bullets(a).cx, bullets(a).cy
-
-            score = score + 100
-
-            GOTO next_108
-        END IF
-
-        END IF
-    NEXT
+    END IF
+  NEXT
 END IF
 
 next_108:

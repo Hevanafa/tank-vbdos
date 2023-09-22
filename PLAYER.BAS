@@ -97,7 +97,7 @@ SUB KillPlayer ()
 lives = lives - 1
 pimmune_t = 3
 
-ExplosionFx pleft, ptop
+ExplosionFx pleft + 4, ptop + 4
 ResetPlayerPos
 
 END SUB
