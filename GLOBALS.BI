@@ -48,6 +48,24 @@ TYPE particle
 END TYPE
 
 
+TYPE trail_particle
+  alive AS INTEGER
+
+  cx AS SINGLE
+  cy AS SINGLE
+  last_cx(3) AS SINGLE
+  last_cy(3) AS SINGLE
+
+  vx AS SINGLE
+  vy AS SINGLE
+  grav AS SINGLE  ' changes vy
+  ttl AS SINGLE
+
+  ' tail colour
+  tcolour AS INTEGER
+END TYPE
+
+
 TYPE powerup
     alive AS INTEGER
     left AS SINGLE
@@ -67,6 +85,7 @@ COMMON SHARED speed_t
 COMMON SHARED shake_x, shake_y
 COMMON SHARED shake_t
 COMMON SHARED particles() AS particle
+COMMON SHARED tparticles() AS trail_particle
 
 ' in seconds
 COMMON SHARED pimmune_t, freeze_t

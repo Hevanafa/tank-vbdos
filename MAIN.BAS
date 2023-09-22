@@ -5,12 +5,12 @@ DECLARE FUNCTION ScrX (x!) AS INTEGER
 DECLARE SUB KillPlayer ()
 DECLARE FUNCTION ScrY (y!) AS INTEGER
 DECLARE SUB DrawPowerup (p AS ANY)
-DECLARE SUB KillBullet (B AS ANY)
-DECLARE SUB DrawBullet (B AS ANY)
+DECLARE SUB KillBullet (b AS ANY)
+DECLARE SUB DrawBullet (b AS ANY)
 DECLARE SUB DrawWall (w AS ANY)
 DECLARE FUNCTION IntersectBox (x1!, y1!, x2!, y2!) AS INTEGER
-DECLARE FUNCTION Max! (a!, B!)
-DECLARE FUNCTION Min! (a!, B!)
+DECLARE FUNCTION Max! (a!, b!)
+DECLARE FUNCTION Min! (a!, b!)
 DECLARE SUB UpdatePowerupHit ()
 DECLARE SUB DrawPowerups ()
 DECLARE SUB UpdatePowerupSpawn ()
@@ -48,16 +48,17 @@ REDIM bullets(30) AS bullet
 REDIM enemies(10) AS enemy
 REDIM powerups(10) AS powerup
 REDIM particles(100) AS particle
+REDIM tparticles(100) AS trail_particle
 
 ' for total gameplay time
 DIM SHARED start_t, total_t
 
 ' colour table
 DIM SHARED particle_ct(4) AS INTEGER
-particle_ct(1) = 8
-particle_ct(2) = 9
-particle_ct(3) = 6
-particle_ct(4) = 5
+particle_ct(1) = lwhite
+particle_ct(2) = white
+particle_ct(3) = grey
+particle_ct(4) = grey
 
 enemy_spawn_interval = .5
 enemy_spawn_t = enemy_spawn_interval
@@ -168,33 +169,37 @@ LOOP UNTIL end_game
 
 SCREEN 0
 
+CLS
+
+PRINT "Thank you for playing!"
+
 SUB ClrMap ()
 
 LINE (ScrX(0), ScrY(0))-(ScrX(0) + mapw, ScrY(0) + maph), black, BF
 
 END SUB
 
-SUB DrawBullet (B AS bullet)
+SUB DrawBullet (b AS bullet)
 
 DIM colour AS INTEGER
 colour = white
 
-IF NOT B.alive THEN colour = 0
+IF NOT b.alive THEN colour = 0
 
-IF B.vx <> 0 THEN
+IF b.vx <> 0 THEN
 
   ' LINE (B.cx - B.vx * 2, ScrY(B.cy))-(B.cx, ScrY(B.cy)), 0
 
-  IF B.alive THEN
-    LINE (ScrX(B.cx - 2), ScrY(B.cy))-(ScrX(B.cx + 2), ScrY(B.cy)), colour
+  IF b.alive THEN
+    LINE (ScrX(b.cx - 2), ScrY(b.cy))-(ScrX(b.cx + 2), ScrY(b.cy)), colour
   END IF
 
-ELSEIF B.vy <> 0 THEN
+ELSEIF b.vy <> 0 THEN
 
   ' LINE (B.cx, ScrY(B.cy) - B.vy * 2)-(B.cx, ScrY(B.cy)), 0
 
-  IF B.alive THEN
-    LINE (ScrX(B.cx), ScrY(B.cy) - 2)-(ScrX(B.cx), ScrY(B.cy) + 2), colour
+  IF b.alive THEN
+    LINE (ScrX(b.cx), ScrY(b.cy) - 2)-(ScrX(b.cx), ScrY(b.cy) + 2), colour
   END IF
 END IF
 
@@ -243,11 +248,28 @@ DIM a AS INTEGER
 
 FOR a = 1 TO UBOUND(particles)
 
-IF NOT particles(a).alive THEN GOTO next_41
+  IF NOT particles(a).alive THEN GOTO next_41
 
-CIRCLE (ScrX(particles(a).cx), ScrY(particles(a).cy)), particles(a).ttl * 10, particle_ct(particles(a).colour_idx), 0, 2 * PI, 1
+  CIRCLE (ScrX(particles(a).cx), ScrY(particles(a).cy)), particles(a).ttl * 10, particle_ct(particles(a).colour_idx), 0, 2 * PI, 1
 
 next_41:
+
+NEXT
+
+
+FOR a = 1 TO UBOUND(tparticles)
+
+  IF NOT tparticles(a).alive THEN GOTO next_dp_tp
+
+  FOR b = 1 TO UBOUND(tparticles(a).last_cx) - 1
+    LINE (ScrX(tparticles(a).last_cx(b)), ScrY(tparticles(a).last_cy(b)))-(ScrX(tparticles(a).last_cx(b + 1)), ScrY(tparticles(a).last_cy(b + 1))), tparticles(a).tcolour
+  NEXT
+
+  LINE (ScrX(tparticles(a).last_cx(3)), ScrY(tparticles(a).last_cy(3)))-(ScrX(tparticles(a).cx), ScrY(tparticles(a).cy)), tparticles(a).tcolour
+
+  PSET (ScrX(tparticles(a).cx), ScrY(tparticles(a).cy)), bwhite
+
+next_dp_tp:
 
 NEXT
 
@@ -292,25 +314,62 @@ END SUB
 SUB ExplosionFx (cx, cy)
 
 DIM a AS INTEGER
+
+' for limitter
 DIM count AS INTEGER
 
 FOR a = 1 TO UBOUND(particles)
 
-IF particles(a).alive THEN GOTO next_39
-IF count > 5 THEN EXIT FOR
+  IF particles(a).alive THEN GOTO next_efx_p
+  IF count > 5 THEN EXIT FOR
 
-particles(a).alive = true
-particles(a).cx = cx
-particles(a).cy = cy
-particles(a).vx = (RND - .5) * 2
-particles(a).vy = (RND - .5) * 2
-particles(a).colour_idx = 1
+  particles(a).alive = true
+  particles(a).cx = cx
+  particles(a).cy = cy
+  particles(a).vx = (RND - .5) * 2
+  particles(a).vy = (RND - .5) * 2
+  particles(a).colour_idx = 1
 
-particles(a).ttl = .5 + RND / 2
+  particles(a).ttl = .5 + RND / 2
 
-count = count + 1
+  count = count + 1
 
-next_39:
+next_efx_p:
+
+NEXT
+
+
+count = 0
+
+FOR a = 1 TO UBOUND(tparticles)
+
+  IF tparticles(a).alive THEN GOTO next_efx_tp
+  IF count > 8 THEN EXIT FOR
+
+  tparticles(a).alive = true
+  tparticles(a).cx = cx
+  tparticles(a).cy = cy
+
+  FOR b = 1 TO UBOUND(tparticles(a).last_cx)
+    tparticles(a).last_cx(b) = cx
+    tparticles(a).last_cy(b) = cy
+  NEXT
+
+  tparticles(a).vx = (RND - .5) * 4
+  tparticles(a).vy = (RND - .5) * 4
+  tparticles(a).grav = RND / 5
+
+  IF RND >= .5 THEN
+    tparticles(a).tcolour = lred
+  ELSE
+    tparticles(a).tcolour = lyellow
+  END IF
+
+  tparticles(a).ttl = .5 + RND / 2
+
+  count = count + 1
+
+next_efx_tp:
 
 NEXT
 
@@ -428,16 +487,16 @@ END SELECT
 
 END FUNCTION
 
-SUB KillBullet (B AS bullet)
+SUB KillBullet (b AS bullet)
 
-B.alive = false
-DrawBullet B
+b.alive = false
+DrawBullet b
 
 END SUB
 
 SUB LoadMap ()
 
-DIM a AS INTEGER, B AS INTEGER
+DIM a AS INTEGER, b AS INTEGER
 DIM has_wall AS INTEGER
 
 ERASE walls
@@ -448,19 +507,19 @@ idx = 1
 
 OPEN "square.csv" FOR INPUT AS #1
 
-FOR B = 1 TO 15
+FOR b = 1 TO 15
 FOR a = 1 TO 15
 
 INPUT #1, has_wall
 IF has_wall THEN
     walls(idx).hp = 4
     walls(idx).left = (a - 1) * 9
-    walls(idx).top = (B - 1) * 9
+    walls(idx).top = (b - 1) * 9
 
     idx = idx + 1
 END IF
 
-NEXT a, B
+NEXT a, b
 
 CLOSE #1
 
@@ -468,7 +527,7 @@ END SUB
 
 SUB LoadSpritesheet ()
 
-DIM a AS LONG, B AS LONG
+DIM a AS LONG, b AS LONG
 
 OPEN "tank.bmp" FOR BINARY AS #1
 
@@ -478,30 +537,30 @@ GET #1, 23, bmp_h
 ERASE spritesheet
 REDIM spritesheet(bmp_h, bmp_w) AS INTEGER
 
-FOR B = 1 TO bmp_h
+FOR b = 1 TO bmp_h
 FOR a = 1 TO bmp_w
-GET #1, 1047 + (B - 1) * bmp_w + (a - 1), spritesheet(bmp_h - B + 1, a)
-spritesheet(bmp_h - B + 1, a) = spritesheet(bmp_h - B + 1, a) MOD 256
-NEXT a, B
+GET #1, 1047 + (b - 1) * bmp_w + (a - 1), spritesheet(bmp_h - b + 1, a)
+spritesheet(bmp_h - b + 1, a) = spritesheet(bmp_h - b + 1, a) MOD 256
+NEXT a, b
 
 CLOSE #1
 
 END SUB
 
-FUNCTION Max (a!, B!)
+FUNCTION Max (a!, b!)
 
-IF a > B THEN
+IF a > b THEN
 Max = a
 ELSE
-Max = B
+Max = b
 END IF
 
 END FUNCTION
 
-FUNCTION Min! (a!, B!)
+FUNCTION Min! (a!, b!)
 
-IF a > B THEN
-Min = B
+IF a > b THEN
+Min = b
 ELSE
 Min = a
 END IF
@@ -534,7 +593,7 @@ END SUB
 
 SUB UpdateBullets ()
 
-DIM a AS INTEGER, B AS INTEGER
+DIM a AS INTEGER, b AS INTEGER
 DIM x_cond AS INTEGER, y_cond AS INTEGER
 
 FOR a = 1 TO UBOUND(bullets)
@@ -552,17 +611,17 @@ END IF
 
 ' Check walls
 
-FOR B = 1 TO UBOUND(walls)
+FOR b = 1 TO UBOUND(walls)
 
-  IF walls(B).hp <= 0 THEN GOTO next_23
+  IF walls(b).hp <= 0 THEN GOTO next_23
 
-  x_cond = walls(B).left <= bullets(a).cx AND bullets(a).cx <= walls(B).left + 9
-  y_cond = walls(B).top <= bullets(a).cy AND bullets(a).cy <= walls(B).top + 9
+  x_cond = walls(b).left <= bullets(a).cx AND bullets(a).cx <= walls(b).left + 9
+  y_cond = walls(b).top <= bullets(a).cy AND bullets(a).cy <= walls(b).top + 9
 
   IF x_cond AND y_cond THEN
     KillBullet bullets(a)
-    walls(B).hp = walls(B).hp - 1
-    DrawWall walls(B)
+    walls(b).hp = walls(b).hp - 1
+    DrawWall walls(b)
     GOTO next_108
   END IF
 
@@ -582,17 +641,17 @@ IF bullets(a).harm_player THEN
         GOTO next_108
     END IF
 ELSE
-    FOR B = 1 TO UBOUND(enemies)
-        IF enemies(B).alive THEN
+    FOR b = 1 TO UBOUND(enemies)
+        IF enemies(b).alive THEN
 
-        x_cond = enemies(B).left <= bullets(a).cx AND bullets(a).cx <= enemies(B).left + 8
-        y_cond = enemies(B).top <= bullets(a).cy AND bullets(a).cy <= enemies(B).top + 8
+        x_cond = enemies(b).left <= bullets(a).cx AND bullets(a).cx <= enemies(b).left + 8
+        y_cond = enemies(b).top <= bullets(a).cy AND bullets(a).cy <= enemies(b).top + 8
 
         IF x_cond AND y_cond THEN
             KillBullet bullets(a)
 
-            enemies(B).alive = false
-            enemies(B).hp = enemies(B).hp - 1
+            enemies(b).alive = false
+            enemies(b).hp = enemies(b).hp - 1
 
             ExplosionFx bullets(a).cx, bullets(a).cy
 
@@ -612,7 +671,7 @@ END SUB
 
 SUB UpdateEnemyMovement ()
 
-DIM a AS INTEGER, B AS INTEGER
+DIM a AS INTEGER, b AS INTEGER
 DIM cond_x AS INTEGER, cond_y AS INTEGER
 
 FOR a = 1 TO UBOUND(enemies)
@@ -623,21 +682,21 @@ enemies(a).left = enemies(a).left + enemies(a).vx
 enemies(a).top = enemies(a).top + enemies(a).vy
 
 ' Check collision with walls
-FOR B = 1 TO UBOUND(walls)
-  IF walls(B).hp <= 0 THEN GOTO next_uem_w
+FOR b = 1 TO UBOUND(walls)
+  IF walls(b).hp <= 0 THEN GOTO next_uem_w
 
-  IF IntersectBox(enemies(a).left, enemies(a).top, walls(B).left, walls(B).top) THEN
+  IF IntersectBox(enemies(a).left, enemies(a).top, walls(b).left, walls(b).top) THEN
 
     IF enemies(a).vx > 0 THEN
-      enemies(a).left = walls(B).left - 9
+      enemies(a).left = walls(b).left - 9
     ELSEIF enemies(a).vx < 0 THEN
-      enemies(a).left = walls(B).left + 9
+      enemies(a).left = walls(b).left + 9
     END IF
 
     IF enemies(a).vy > 0 THEN
-      enemies(a).top = walls(B).top - 9
+      enemies(a).top = walls(b).top - 9
     ELSEIF enemies(a).vy < 0 THEN
-      enemies(a).top = walls(B).top + 9
+      enemies(a).top = walls(b).top + 9
     END IF
 
     EXIT FOR
@@ -730,25 +789,55 @@ END SUB
 
 SUB UpdateParticles ()
 
-DIM a AS INTEGER
+DIM a AS INTEGER, b AS INTEGER
 
 FOR a = 1 TO UBOUND(particles)
 
-IF NOT particles(a).alive THEN GOTO next_42
+  IF NOT particles(a).alive THEN GOTO next_42
 
-particles(a).ttl = particles(a).ttl - delta_t
+  particles(a).ttl = particles(a).ttl - delta_t
 
-IF particles(a).ttl <= 0 THEN
+  IF particles(a).ttl <= 0 THEN
     particles(a).alive = false
     GOTO next_42
-END IF
+  END IF
 
-particles(a).cx = particles(a).cx + particles(a).vx
-particles(a).cy = particles(a).cy + particles(a).vy
+  particles(a).cx = particles(a).cx + particles(a).vx
+  particles(a).cy = particles(a).cy + particles(a).vy
 
-particles(a).colour_idx = particles(a).colour_idx MOD 4 + 1
+  particles(a).colour_idx = particles(a).colour_idx MOD 4 + 1
 
 next_42:
+
+NEXT
+
+
+FOR a = 1 TO UBOUND(tparticles)
+  IF NOT tparticles(a).alive THEN GOTO next_up_tp
+
+  tparticles(a).ttl = tparticles(a).ttl - delta_t
+
+  IF tparticles(a).ttl <= 0 THEN
+    tparticles(a).alive = false
+    GOTO next_up_tp
+  END IF
+
+
+  ' copy coordinates
+  FOR b = 1 TO UBOUND(tparticles(a).last_cx) - 1
+    tparticles(a).last_cx(b) = tparticles(a).last_cx(b + 1)
+    tparticles(a).last_cy(b) = tparticles(a).last_cy(b + 1)
+  NEXT
+
+  tparticles(a).last_cx(3) = tparticles(a).cx
+  tparticles(a).last_cy(3) = tparticles(a).cy
+
+  tparticles(a).cx = tparticles(a).cx + tparticles(a).vx
+  tparticles(a).cy = tparticles(a).cy + tparticles(a).vy
+
+  tparticles(a).vy = tparticles(a).vy + tparticles(a).grav
+
+next_up_tp:
 
 NEXT
 
