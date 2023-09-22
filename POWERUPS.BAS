@@ -1,3 +1,5 @@
+DECLARE SUB FillMap (colour AS INTEGER)
+DECLARE SUB PlaySiren ()
 DECLARE SUB ExplosionFx (cx!, cy!)
 DECLARE SUB DrawPowerup (p AS ANY)
 DECLARE SUB DrawRegion (xdest AS INTEGER, ydest AS INTEGER, w AS INTEGER, h AS INTEGER, xsrc AS INTEGER, ysrc AS INTEGER)
@@ -33,33 +35,41 @@ END SUB
 
 SUB UpdatePowerupHit ()
 
-DIM a AS INTEGER, B AS INTEGER
+DIM a AS INTEGER, b AS INTEGER
 DIM cond_x AS INTEGER, cond_y AS INTEGER
+
+DIM num AS INTEGER, tone AS INTEGER
 
 FOR a = 1 TO UBOUND(powerups)
 
 IF NOT powerups(a).alive THEN GOTO next_uph
 
 IF IntersectBox(pleft, ptop, powerups(a).left, powerups(a).top) THEN
-    powerups(a).alive = false
-    DrawPowerup powerups(a)
+  powerups(a).alive = false
+  DrawPowerup powerups(a)
 
-    SELECT CASE powerups(a).kind
-    CASE pu_nuke
-        FOR B = 1 TO UBOUND(enemies)
-            IF enemies(B).alive THEN
-            ExplosionFx enemies(B).left, enemies(B).top
-            enemies(B).alive = false
-            score = score + 100
-            END IF
-        NEXT
+  SELECT CASE powerups(a).kind
+  CASE pu_nuke
+    PlaySiren
 
-        shake_t = 2
-    CASE pu_speed
-        pspeed_t = 5
-    CASE pu_life
-        lives = lives + 1
-    END SELECT
+    flash_t = .3
+  
+    FOR b = 1 TO UBOUND(enemies)
+      IF enemies(b).alive THEN
+      ExplosionFx enemies(b).left, enemies(b).top
+      enemies(b).alive = false
+      score = score + 100
+      END IF
+    NEXT
+
+    shake_t = 2
+
+  CASE pu_speed
+    pspeed_t = 5
+
+  CASE pu_life
+    lives = lives + 1
+  END SELECT
 END IF
 
 next_uph:

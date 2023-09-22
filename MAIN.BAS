@@ -1,3 +1,6 @@
+DECLARE SUB InitPlayer ()
+DECLARE SUB PlayWallHit ()
+DECLARE SUB FillMap (colour AS INTEGER)
 DECLARE SUB KillEnemy (e AS ANY)
 DECLARE SUB HookInterrupt ()
 DECLARE SUB UnhookInterrupt ()
@@ -54,28 +57,6 @@ REDIM tparticles(100) AS trail_particle
 ' for total gameplay time
 DIM SHARED start_t, total_t
 
-' colour table
-DIM SHARED particle_ct(4) AS INTEGER
-particle_ct(1) = lwhite
-particle_ct(2) = white
-particle_ct(3) = grey
-particle_ct(4) = grey
-
-enemy_spawn_interval = .5
-enemy_spawn_t = enemy_spawn_interval
-powerup_spawn_interval = 3
-powerup_spawn_t = powerup_spawn_interval
-
-
-LoadMap
-LoadSpritesheet
-
-pimmune_t = 3
-lives = 3
-dir = d_up
-
-ResetPlayerPos
-
 DIM count%
 
 ' in seconds
@@ -83,6 +64,28 @@ DIM last_t
 DIM fps_t
 DIM last_fps AS INTEGER, fps AS INTEGER
 DIM frameskip_lim AS INTEGER, frameskip_count AS INTEGER
+
+' colour table
+DIM SHARED particle_ct(4) AS INTEGER
+particle_ct(1) = bwhite
+particle_ct(2) = white
+particle_ct(3) = grey
+particle_ct(4) = grey
+
+enemy_spawn_interval = .5
+powerup_spawn_interval = 3
+
+
+start_game:
+
+enemy_spawn_t = enemy_spawn_interval
+powerup_spawn_t = powerup_spawn_interval
+
+LoadMap
+LoadSpritesheet
+
+InitPlayer
+
 frameskip_lim = 1
                          
 
@@ -117,6 +120,10 @@ IF shake_t > 0 THEN
   shake_t = shake_t - delta_t
 END IF
 
+IF flash_t > 0 THEN
+  flash_t = flash_t - delta_t
+END IF
+
 
 ' Draw
 
@@ -126,12 +133,16 @@ ClrMap
 ' game map border
 LINE (ScrX(-1), ScrY(-1))-(ScrX(0) + mapw, ScrY(0) + maph), white, B
 
-DrawWalls
-DrawPowerups
-DrawBullets
-DrawPlayer
-DrawEnemies
-DrawParticles
+IF flash_t > 0 THEN
+  FillMap bwhite
+ELSE
+  DrawWalls
+  DrawPowerups
+  DrawBullets
+  DrawPlayer
+  DrawEnemies
+  DrawParticles
+END IF
 
 DrawHUD
 
@@ -168,9 +179,16 @@ WAIT &H3DA, 8, 8
 LOOP UNTIL end_game
 
 
+UnhookInterrupt
+
 SCREEN 0
 
 CLS
+
+IF lives <= 0 THEN
+  PRINT "Game over!"
+  PRINT "Kills: " + STR$(pkills)
+END IF
 
 PRINT "Thank you for playing!"
 
@@ -245,7 +263,7 @@ END SUB
 
 SUB DrawParticles ()
 
-DIM a AS INTEGER
+DIM a AS INTEGER, b AS INTEGER
 
 FOR a = 1 TO UBOUND(particles)
 
@@ -314,7 +332,7 @@ END SUB
 
 SUB ExplosionFx (cx, cy)
 
-DIM a AS INTEGER
+DIM a AS INTEGER, b AS INTEGER
 
 ' for limitter
 DIM count AS INTEGER
@@ -376,6 +394,12 @@ NEXT
 
 END SUB
 
+SUB FillMap (colour AS INTEGER)
+
+LINE (ScrX(0), ScrY(0))-(ScrX(0) + mapw, ScrY(0) + maph), colour, BF
+
+END SUB
+
 FUNCTION GetEnemyDir (e AS enemy) AS INTEGER
 
 IF e.vx > 0 THEN
@@ -393,6 +417,17 @@ END FUNCTION
 SUB HookInterrupt ()
 
 DIM a%: a% = KEYB(-1)
+
+END SUB
+
+SUB InitPlayer ()
+
+pimmune_t = 3
+pkills = 0
+lives = 3
+dir = d_up
+
+ResetPlayerPos
 
 END SUB
 
@@ -497,8 +532,24 @@ END SUB
 
 SUB KillEnemy (e AS enemy)
 
+DIM bang AS INTEGER
+
 e.alive = false
 e.hp = e.hp - 1
+
+IF RND >= .5 THEN
+  SOUND 164, 2
+  SOUND 196, 2
+ELSE
+  SOUND 196, 2
+  SOUND 220, 2
+END IF
+
+pkills = pkills + 1
+
+'FOR bang = 1 TO 45
+'SOUND 84 + RND * 3, 1
+'NEXT
 
 ExplosionFx e.left + 4, e.top + 4
 
@@ -577,6 +628,30 @@ END IF
 
 END FUNCTION
 
+SUB PlaySiren ()
+
+DIM a AS INTEGER
+
+FOR a = 1 TO 3
+SOUND 440, .5
+SOUND 587, .5
+NEXT
+
+
+'FOR num = 1 TO 3
+'FOR tone = -120 TO 120 STEP 48
+'  SOUND ABS(tone) + 440, 1
+'NEXT
+'NEXT
+
+END SUB
+
+SUB PlayWallHit ()
+
+SOUND 82, .5
+
+END SUB
+
 SUB ResetEnemyVel (e AS enemy)
 
 IF RND >= .5 THEN
@@ -631,7 +706,10 @@ FOR a = 1 TO UBOUND(bullets)
     IF x_cond AND y_cond THEN
       KillBullet bullets(a)
       walls(b).hp = walls(b).hp - 1
-      DrawWall walls(b)
+
+      PlayWallHit
+
+      ' DrawWall walls(b)
       GOTO next_108
     END IF
 
@@ -650,7 +728,9 @@ next_23:
 
       GOTO next_108
     END IF
-  ELSE
+  END IF
+
+  IF NOT bullets(a).harm_player THEN
     FOR b = 1 TO UBOUND(enemies)
       IF enemies(b).alive THEN
 
@@ -658,12 +738,12 @@ next_23:
       y_cond = enemies(b).top <= bullets(a).cy AND bullets(a).cy <= enemies(b).top + 8
 
       IF x_cond AND y_cond THEN
-          KillBullet bullets(a)
-          KillEnemy enemies(b)
+        KillBullet bullets(a)
+        KillEnemy enemies(b)
 
-          score = score + 100
+        score = score + 100
 
-          GOTO next_108
+        GOTO next_108
       END IF
 
       END IF
@@ -739,23 +819,23 @@ END IF
 enemies(a).shoot_t = enemies(a).shoot_t - delta_t
 
 IF enemies(a).shoot_t <= 0 THEN
-    enemies(a).shoot_t = Rng(3, 5)
+  enemies(a).shoot_t = Rng(3, 5)
 
-    EnemyShoot enemies(a)
+  EnemyShoot enemies(a)
 END IF
 
 
 ' Check bounds
 IF enemies(a).left <= 0 THEN
-    enemies(a).left = 0
+  enemies(a).left = 0
 ELSEIF enemies(a).left > mapw - 9 THEN
-    enemies(a).left = mapw - 9
+  enemies(a).left = mapw - 9
 END IF
 
 IF enemies(a).top <= 0 THEN
-    enemies(a).top = 0
+  enemies(a).top = 0
 ELSEIF enemies(a).top > maph - 9 THEN
-    enemies(a).top = maph - 9
+  enemies(a).top = maph - 9
 END IF
 
 next_uem:

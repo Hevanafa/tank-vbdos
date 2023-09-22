@@ -1,50 +1,50 @@
-' OPTION EXPLICIT
+OPTION EXPLICIT
 OPTION BASE 1
 DEFSNG A-Z
 
 
 TYPE wall
-    hp AS INTEGER
-    top AS SINGLE
-    left AS SINGLE
-    iron AS INTEGER
+  hp AS INTEGER
+  top AS SINGLE
+  left AS SINGLE
+  iron AS INTEGER
 END TYPE
 
 
 TYPE bullet
-    alive AS INTEGER
-    cx AS SINGLE
-    cy AS SINGLE
-    vx AS SINGLE
-    vy AS SINGLE
+  alive AS INTEGER
+  cx AS SINGLE
+  cy AS SINGLE
+  vx AS SINGLE
+  vy AS SINGLE
 
-    harm_player AS INTEGER
+  harm_player AS INTEGER
 END TYPE
 
 
 TYPE enemy
-    alive AS INTEGER
-    hp AS INTEGER
-    top AS SINGLE
-    left AS SINGLE
-    vx AS SINGLE
-    vy AS SINGLE
+  alive AS INTEGER
+  hp AS INTEGER
+  top AS SINGLE
+  left AS SINGLE
+  vx AS SINGLE
+  vy AS SINGLE
 
-    change_dir_t AS SINGLE
-    shoot_t AS SINGLE
+  change_dir_t AS SINGLE
+  shoot_t AS SINGLE
 END TYPE
 
 
 TYPE particle
-    alive AS INTEGER
-    size AS SINGLE
-    cx AS SINGLE
-    cy AS SINGLE
-    vx AS SINGLE
-    vy AS SINGLE
-    ttl AS SINGLE
+  alive AS INTEGER
+  size AS SINGLE
+  cx AS SINGLE
+  cy AS SINGLE
+  vx AS SINGLE
+  vy AS SINGLE
+  ttl AS SINGLE
 
-    colour_idx AS INTEGER
+  colour_idx AS INTEGER
 END TYPE
 
 
@@ -58,7 +58,9 @@ TYPE trail_particle
 
   vx AS SINGLE
   vy AS SINGLE
-  grav AS SINGLE  ' changes vy
+
+  ' changes vy
+  grav AS SINGLE
   ttl AS SINGLE
 
   ' tail colour
@@ -67,28 +69,33 @@ END TYPE
 
 
 TYPE powerup
-    alive AS INTEGER
-    left AS SINGLE
-    top AS SINGLE
+  alive AS INTEGER
+  left AS SINGLE
+  top AS SINGLE
 
-    ' starts with pu_
-    kind AS INTEGER
+  ' starts with pu_
+  kind AS INTEGER
 END TYPE
 
 
 COMMON SHARED pleft AS SINGLE, ptop AS SINGLE
 COMMON SHARED score AS LONG
 COMMON SHARED lives
-' speed boost
-COMMON SHARED pspeed_t
+' speed boost & immunity
+COMMON SHARED pspeed_t, pimmune_t
+COMMON SHARED pkills AS INTEGER
+
+' player's power-up count
+' COMMON SHARED ppu_count() AS INTEGER
 
 COMMON SHARED shake_x, shake_y
 COMMON SHARED shake_t
+COMMON SHARED flash_t
 COMMON SHARED particles() AS particle
 COMMON SHARED tparticles() AS trail_particle
 
 ' in seconds
-COMMON SHARED pimmune_t, freeze_t
+COMMON SHARED freeze_t
 
 CONST false = 0
 CONST true = NOT false
@@ -102,11 +109,13 @@ CONST mapw = 135
 CONST maph = 135
 
 CONST pu_nuke = 1
+CONST pu_immune = 2
 CONST pu_speed = 3
 CONST pu_life = 4
 CONST pu_freeze = 5
 CONST pu_autoshot = 6
 CONST pu_pierce = 7
+CONST pu_strong = 8
 
 ' CONST PI# = 3.1415926535#
 ' rounded down

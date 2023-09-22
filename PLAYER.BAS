@@ -19,7 +19,6 @@ SUB CheckInputs ()
 
 ' ESC or "q"
 IF KEYB(2) OR KEYB(17) THEN
-  UnhookInterrupt
   end_game = true
   EXIT SUB
 END IF
@@ -98,15 +97,23 @@ lives = lives - 1
 pimmune_t = 3
 pspeed_t = 0
 
+SOUND 196, 2
+SOUND 155, 2
+SOUND 130, 2
+
 ExplosionFx pleft + 4, ptop + 4
 ResetPlayerPos
+
+IF lives <= 0 THEN
+end_game = true
+END IF
 
 END SUB
 
 SUB ResetPlayerPos ()
 
 pleft = Rng(1, mapw \ 9) * 9
-ptop = maph - 10
+ptop = maph - 9
 
 END SUB
 
